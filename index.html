@@ -4750,7 +4750,15 @@ function updateKPI(data) {
   document.querySelector('#kpiOnlineRow .kpi-card.yellow .kpi-badge').textContent = statusTxt(wD2, 90, 80, 60);
 
   document.getElementById('kpiOverdueRate').innerHTML = `${Math.round(wOverdue)}<span class="kpi-unit">%</span>`;
-  document.getElementById('kpiOverdueRateTrend').innerHTML = trendStr(wOverdue, prevKpi.overdue);
+  // 超期率是反向指标：越低越好，上涨=坏事(红色▼)，下降=好事(绿色▲)
+  const overdueDiff = wOverdue - prevKpi.overdue;
+  if (Math.abs(overdueDiff) < 0.05) {
+    document.getElementById('kpiOverdueRateTrend').innerHTML = '<span class="trend-flat">— ±0%</span>';
+  } else if (overdueDiff > 0) {
+    document.getElementById('kpiOverdueRateTrend').innerHTML = `<span class="trend-down">▼ +${Math.round(overdueDiff)}%</span>`;
+  } else {
+    document.getElementById('kpiOverdueRateTrend').innerHTML = `<span class="trend-up">▲ −${Math.round(Math.abs(overdueDiff))}%</span>`;
+  }
   document.querySelector('#kpiOnlineRow .kpi-card.red .kpi-badge').className = `kpi-badge ${badgeHtmlInv(wOverdue, 5, 15)}`;
   document.querySelector('#kpiOnlineRow .kpi-card.red .kpi-badge').textContent = statusTxtInv(wOverdue, 5, 15);
 
