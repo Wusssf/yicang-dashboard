@@ -4579,8 +4579,8 @@ const SCAN_COLUMNS = ["客户代码","发货仓库","出库单号","出库状态
 const prevKpi = { online: 33.1, d1: 31.6, d2: 31.6, overdue: 68.4, notOnline: 724,
   warehouseNotOnline: {
     '大阪箕面仓': 0, '大阪貝塚仓': 0, '千叶六方町仓': 0, '千叶天户町仓': 0,
-    '德国柏林01仓': 146, '英国拉格比01仓': 28, '英国卢顿仓': 259,
-    '美国新泽西01仓': 22, '美国洛杉矶03仓': 56
+    '德国柏林01仓': 146, '英国拉格比01仓': 176, '英国卢顿仓': 536,
+    '美国新泽西01仓': 12, '美国洛杉矶03仓': 56
   }
 };
 const warehouseData = [
@@ -4767,22 +4767,24 @@ function updateKPI(data) {
   if (totalNotOnline === 0) {
     document.getElementById('kpiNotOnlineTrend').innerHTML = '<span class="trend-up">▲ 全部上网</span>';
   } else {
-    // 按仓库筛选时取该仓库上期值，否则取全局值
-    let prevNotOnline;
+    // 按仓库筛选时取该仓库上期值（无数据则不显示趋势）
+    let prevNotOnline = null;
     if (data.length === 1 && data[0].name && prevKpi.warehouseNotOnline && prevKpi.warehouseNotOnline[data[0].name] !== undefined) {
       prevNotOnline = prevKpi.warehouseNotOnline[data[0].name];
-    } else {
+    } else if (data.length !== 1) {
       prevNotOnline = prevKpi.notOnline;
     }
-    const notOnlineDiff = totalNotOnline - prevNotOnline;
-    if (Math.abs(notOnlineDiff) < 1) {
-      document.getElementById('kpiNotOnlineTrend').innerHTML = '<span class="trend-flat">— 持平</span>';
-    } else if (notOnlineDiff > 0) {
-      // 未上网票数增加 = 变差 = 向上红色箭头
-      document.getElementById('kpiNotOnlineTrend').innerHTML = `<span class="trend-up" style="color:#c62828">▲ +${notOnlineDiff}票</span>`;
+    if (prevNotOnline === null) {
+      document.getElementById('kpiNotOnlineTrend').innerHTML = '';
     } else {
-      // 未上网票数减少 = 改善 = 向下绿色箭头
-      document.getElementById('kpiNotOnlineTrend').innerHTML = `<span class="trend-down" style="color:#2e7d32">▼ ${notOnlineDiff}票</span>`;
+      const notOnlineDiff = totalNotOnline - prevNotOnline;
+      if (Math.abs(notOnlineDiff) < 1) {
+        document.getElementById('kpiNotOnlineTrend').innerHTML = '<span class="trend-flat">— 持平</span>';
+      } else if (notOnlineDiff > 0) {
+        document.getElementById('kpiNotOnlineTrend').innerHTML = `<span class="trend-up" style="color:#c62828">▲ +${notOnlineDiff}票</span>`;
+      } else {
+        document.getElementById('kpiNotOnlineTrend').innerHTML = `<span class="trend-down" style="color:#2e7d32">▼ ${notOnlineDiff}票</span>`;
+      }
     }
   }
 }
