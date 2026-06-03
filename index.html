@@ -4576,7 +4576,13 @@ const SCAN_COLUMNS = ["客户代码","发货仓库","出库单号","出库状态
 // ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
 //  数据（来源：上网扫描率-bi.xlsx / 扫描sheet，2026/05/01~2026/05/19，共18180票）
 // ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
-const prevKpi = { online: 33.1, d1: 31.6, d2: 31.6, overdue: 68.4, notOnline: 724 };
+const prevKpi = { online: 33.1, d1: 31.6, d2: 31.6, overdue: 68.4, notOnline: 724,
+  warehouseNotOnline: {
+    '大阪箕面仓': 0, '大阪貝塚仓': 0, '千叶六方町仓': 0, '千叶天户町仓': 0,
+    '德国柏林01仓': 146, '英国拉格比01仓': 28, '英国卢顿仓': 259,
+    '美国新泽西01仓': 22, '美国洛杉矶03仓': 56
+  }
+};
 const warehouseData = [
   { region:'欧洲', name:'德国柏林01仓', tickets:1869, online:92.2, d1:91.2, d2:91.7, overdue:8.3, notOnline:146, status:'warn' },
   { region:'美国', name:'美国新泽西01仓', tickets:37, online:40.5, d1:40.5, d2:40.5, overdue:59.5, notOnline:22, status:'bad' },
@@ -4761,7 +4767,14 @@ function updateKPI(data) {
   if (totalNotOnline === 0) {
     document.getElementById('kpiNotOnlineTrend').innerHTML = '<span class="trend-up">▲ 全部上网</span>';
   } else {
-    const notOnlineDiff = totalNotOnline - prevKpi.notOnline;
+    // 按仓库筛选时取该仓库上期值，否则取全局值
+    let prevNotOnline;
+    if (data.length === 1 && data[0].name && prevKpi.warehouseNotOnline && prevKpi.warehouseNotOnline[data[0].name] !== undefined) {
+      prevNotOnline = prevKpi.warehouseNotOnline[data[0].name];
+    } else {
+      prevNotOnline = prevKpi.notOnline;
+    }
+    const notOnlineDiff = totalNotOnline - prevNotOnline;
     if (Math.abs(notOnlineDiff) < 1) {
       document.getElementById('kpiNotOnlineTrend').innerHTML = '<span class="trend-flat">— 持平</span>';
     } else if (notOnlineDiff > 0) {
