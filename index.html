@@ -9428,8 +9428,11 @@ function renderTable(data) {
   const tbody = document.getElementById('tableBody');
   tbody.innerHTML = '';
   data.forEach(row => {
-    const sCls = row.status === 'ok' ? 'status-ok' : row.status === 'warn' ? 'status-warn' : 'status-bad';
-    const sTxt = row.status === 'ok' ? '达标' : row.status === 'warn' ? '关注' : '异常';
+    // ★ 状态动态重算：基于 notOnlineGt48 数量（<20达标，20-50关注，>50预警）
+    const gt48 = row.notOnlineGt48 !== undefined ? row.notOnlineGt48 : 0;
+    const dynStatus = gt48 < 20 ? 'ok' : gt48 <= 50 ? 'warn' : 'bad';
+    const sCls = dynStatus === 'ok' ? 'status-ok' : dynStatus === 'warn' ? 'status-warn' : 'status-bad';
+    const sTxt = dynStatus === 'ok' ? '达标' : dynStatus === 'warn' ? '关注' : '预警';
     const onlineColor = row.online >= 95 ? '#2e7d32' : row.online >= 80 ? '#1f6feb' : '#c62828';
     const d1Color = row.d1 < 70 ? '#c62828' : (row.d1 >= 95 ? '#2e7d32' : row.d1 >= 80 ? '#1f6feb' : '#666');
     const d2Color = row.d2 < 70 ? '#c62828' : (row.d2 >= 95 ? '#2e7d32' : row.d2 >= 80 ? '#1f6feb' : '#666');
@@ -9576,7 +9579,7 @@ function updateKPI(data) {
     if (data.length === 1 && data[0].name && prevKpi.warehouseNotOnline && prevKpi.warehouseNotOnline[data[0].name] !== undefined) {
       prevNotOnline = prevKpi.warehouseNotOnline[data[0].name];
     } else if (data.length !== 1) {
-      prevNotOnline = prevKpi.notOnline;
+      prevNotOnline = prevKpi.notOnlineGt48 !== undefined ? prevKpi.notOnlineGt48 : prevKpi.notOnline;
     }
     if (prevNotOnline === null) {
       document.getElementById('kpiNotOnlineTrend').innerHTML = '';
@@ -9640,7 +9643,7 @@ function applyFilter() {
   let viewWarehouses; // 当前明细表中涉及的仓库列表
   if (ch !== 'all' && channelScanData[ch]) {
     const ci = channelScanData[ch];
-    data = [{ region: ci.region, name: ci.warehouse + '（' + ch + '）', tickets: ci.tickets, online: ci.online, d1: ci.d1, d2: ci.d2, overdue: ci.overdue, notOnline: ci.notOnline || 0, status: ci.overdue < 10 ? 'ok' : ci.overdue <= 50 ? 'warn' : 'bad' }];
+    data = [{ region: ci.region, name: ci.warehouse + '（' + ch + '）', tickets: ci.tickets, online: ci.online, d1: ci.d1, d2: ci.d2, overdue: ci.overdue, notOnline: ci.notOnline || 0, notOnlineGt48: ci.notOnlineGt48 || 0, status: (ci.notOnlineGt48||0) < 20 ? 'ok' : (ci.notOnlineGt48||0) <= 50 ? 'warn' : 'bad' }];
     viewWarehouses = [ci.warehouse];
   } else {
     data = warehouseData;
