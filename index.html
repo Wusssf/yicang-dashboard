@@ -9643,7 +9643,13 @@ function applyFilter() {
   let viewWarehouses; // 当前明细表中涉及的仓库列表
   if (ch !== 'all' && channelScanData[ch]) {
     const ci = channelScanData[ch];
-    data = [{ region: ci.region, name: ci.warehouse + '（' + ch + '）', tickets: ci.tickets, online: ci.online, d1: ci.d1, d2: ci.d2, overdue: ci.overdue, notOnline: ci.notOnline || 0, notOnlineGt48: ci.notOnlineGt48 || 0, status: (ci.notOnlineGt48||0) < 20 ? 'ok' : (ci.notOnlineGt48||0) <= 50 ? 'warn' : 'bad' }];
+    // ★ Fallback: 如果 channelScanData 没有 notOnlineGt48，从 warehouseData 同名仓库查找
+    let chNotOnlineGt48 = ci.notOnlineGt48;
+    if (chNotOnlineGt48 === undefined || chNotOnlineGt48 === null) {
+      const whMatch = warehouseData.find(d => d.name === ci.warehouse);
+      if (whMatch) chNotOnlineGt48 = whMatch.notOnlineGt48;
+    }
+    data = [{ region: ci.region, name: ci.warehouse + '（' + ch + '）', tickets: ci.tickets, online: ci.online, d1: ci.d1, d2: ci.d2, overdue: ci.overdue, notOnline: ci.notOnline || 0, notOnlineGt48: chNotOnlineGt48 !== undefined ? chNotOnlineGt48 : 0, status: (chNotOnlineGt48||0) < 20 ? 'ok' : (chNotOnlineGt48||0) <= 50 ? 'warn' : 'bad' }];
     viewWarehouses = [ci.warehouse];
   } else {
     data = warehouseData;
