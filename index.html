@@ -9643,13 +9643,10 @@ function applyFilter() {
   let viewWarehouses; // 当前明细表中涉及的仓库列表
   if (ch !== 'all' && channelScanData[ch]) {
     const ci = channelScanData[ch];
-    // ★ Fallback: 如果 channelScanData 缺少字段，从 warehouseData 同名仓库查找
-    const whMatch = warehouseData.find(d => d.name === ci.warehouse);
-    let chNotOnline2448 = ci.notOnline2448;
-    if ((chNotOnline2448 === undefined || chNotOnline2448 === null) && whMatch) chNotOnline2448 = whMatch.notOnline2448;
-    let chNotOnlineGt48 = ci.notOnlineGt48;
-    if ((chNotOnlineGt48 === undefined || chNotOnlineGt48 === null) && whMatch) chNotOnlineGt48 = whMatch.notOnlineGt48;
-    data = [{ region: ci.region, name: ci.warehouse + '（' + ch + '）', tickets: ci.tickets, online: ci.online, d1: ci.d1, d2: ci.d2, overdue: ci.overdue, notOnline: ci.notOnline || 0, notOnline2448: chNotOnline2448 !== undefined ? chNotOnline2448 : 0, notOnlineGt48: chNotOnlineGt48 !== undefined ? chNotOnlineGt48 : 0, status: (chNotOnlineGt48||0) < 20 ? 'ok' : (chNotOnlineGt48||0) <= 50 ? 'warn' : 'bad' }];
+    // 渠道级数据，直接取 channelScanData（缺字段显示"—"）
+    const chNotOnline2448 = ci.notOnline2448;
+    const chNotOnlineGt48 = ci.notOnlineGt48;
+    data = [{ region: ci.region, name: ci.warehouse + '（' + ch + '）', tickets: ci.tickets, online: ci.online, d1: ci.d1, d2: ci.d2, overdue: ci.overdue, notOnline: ci.notOnline || 0, notOnline2448: chNotOnline2448, notOnlineGt48: chNotOnlineGt48, status: (chNotOnlineGt48||0) < 20 ? 'ok' : (chNotOnlineGt48||0) <= 50 ? 'warn' : 'bad' }];
     viewWarehouses = [ci.warehouse];
   } else {
     data = warehouseData;
