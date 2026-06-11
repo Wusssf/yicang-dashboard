@@ -12082,35 +12082,7 @@ function updateKPI(data) {
   document.querySelector('#kpiOnlineRow .kpi-card.red .kpi-badge').textContent = statusTxtInv(wOverdue, 5, 15);
 
   document.getElementById('kpiNotOnline').innerHTML = `${totalNotOnlineGt48}<span class="kpi-unit">票</span>`;
-  if (totalNotOnlineGt48 === 0) {
-    document.getElementById('kpiNotOnlineTrend').innerHTML = '<span class="trend-up">■ 全部上网</span>';
-  } else {
-    // 按仓库筛选时取该仓库上期值（无数据则不显示趋势）
-    let prevNotOnline = null;
-    if (data.length === 1 && data[0].name && prevKpi.warehouseNotOnline) {
-      // 去除渠道后缀（如"仓（渠道名）"→"仓"），再查warehouseNotOnline
-      const whKey = data[0].name.replace(/（.*）$/, '');
-      if (prevKpi.warehouseNotOnline[whKey] !== undefined) {
-        prevNotOnline = prevKpi.warehouseNotOnline[whKey];
-      } else {
-        prevNotOnline = prevKpi.notOnlineGt48 !== undefined ? prevKpi.notOnlineGt48 : prevKpi.notOnline;
-      }
-    } else if (data.length !== 1) {
-      prevNotOnline = prevKpi.notOnlineGt48 !== undefined ? prevKpi.notOnlineGt48 : prevKpi.notOnline;
-    }
-    if (prevNotOnline === null) {
-      document.getElementById('kpiNotOnlineTrend').innerHTML = '';
-    } else {
-      const notOnlineDiff = totalNotOnlineGt48 - prevNotOnline;
-      if (Math.abs(notOnlineDiff) < 1) {
-        document.getElementById('kpiNotOnlineTrend').innerHTML = '<span class="trend-flat">— 持平</span>';
-      } else if (notOnlineDiff > 0) {
-        document.getElementById('kpiNotOnlineTrend').innerHTML = `<span class="trend-up" style="color:#c62828">■ +${notOnlineDiff}票</span>`;
-      } else {
-        document.getElementById('kpiNotOnlineTrend').innerHTML = `<span class="trend-down" style="color:#2e7d32">■ ${notOnlineDiff}票</span>`;
-      }
-    }
-  }
+  document.getElementById('kpiNotOnlineTrend').innerHTML = '';
 }
 
 // ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
