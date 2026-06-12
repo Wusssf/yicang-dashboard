@@ -14017,6 +14017,8 @@ function exportOutboundTrendData() {
 // ★ 未上网明细导出 → {仓库}-未上网.xlsx（两个Sheet）
 // Sheet1 未上网(24-48h)：P列=1 且 N列(D2内)=否
 // Sheet2 未上网(>48h)：P列=2 且 O列(已扫描)=否
+// SCAN_DATA列: 客户代码(0), 发货仓库(1), 出库单号(2), 服务商单号(3), 出库状态(4), 服务渠道(5), 出库时间(6),
+//              是否已扫描/O列(7), 是否在D2内扫描/N列(8), 超时标记/P列(9)
 function exportData() {
   try {
   const region = document.getElementById('filterRegion').value;
@@ -14024,8 +14026,8 @@ function exportData() {
   const prefix = getExportPrefix();
   const regionMap = { japan:'日本', europe:'欧洲', usa:'美国' };
 
-  // 导出用的6列表头（不含 O/N/P 辅助列）
-  const exportHeaders = ["客户代码","发货仓库","出库单号","出库状态","服务渠道","出库时间"];
+  // 导出用的7列表头（不含 O/N/P 辅助列）
+  const exportHeaders = ["客户代码","发货仓库","出库单号","服务商单号","出库状态","服务渠道","出库时间"];
 
   // 仓库过滤函数
   function passFilter(row) {
@@ -14044,10 +14046,10 @@ function exportData() {
   if (typeof SCAN_DATA !== 'undefined' && SCAN_DATA.length > 0) {
     SCAN_DATA.forEach(row => {
       if (!passFilter(row)) return;
-      const oVal = row[6]; // 是否已扫描
-      const nVal = row[7]; // 是否在D2内扫描
-      const pVal = row[8]; // 超时标记
-      const exportRow = row.slice(0, 6); // 取前6列
+      const oVal = row[7]; // 是否已扫描
+      const nVal = row[8]; // 是否在D2内扫描
+      const pVal = row[9]; // 超时标记
+      const exportRow = row.slice(0, 7); // 取前7列（含服务商单号）
       // Sheet1: P=1 且 N=否
       if (pVal === '1' && nVal === '否') {
         rows1.push(exportRow);
