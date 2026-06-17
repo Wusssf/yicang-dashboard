@@ -15920,7 +15920,7 @@ const SCAN_DATA = [
     </div>
   </div>
   <div class="header-right">
-    <div class="update-time" id="updateTime">数据更新时间：2026-06-16</div>
+    <div class="update-time" id="updateTime">数据更新时间：2026-06-17</div>
     <div class="live-badge"><div class="live-dot"></div>实时监控</div>
   </div>
 </div>
@@ -16291,9 +16291,9 @@ const SCAN_COLUMNS = ["客户代码","发货仓库","出库单号","出库状态
 // ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
 //  数据（来源：上网扫描率-bi.xlsx / 扫描sheet，2026/05/01~2026/05/19，共18180票）
 // ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
-const prevKpi = { online: 99.7, d1: 92.5, d2: 94.1, overdue: 5.9, notOnline: 43, notOnlineGt48: 43,
-  warehouseNotOnline: { '德国柏林01仓': 13, '英国卢顿仓': 10, '英国拉格比01仓': 4, '美国新泽西01仓': 2, '美国洛杉矶03仓': 14 },
-  warehouseKpi: { '德国柏林01仓': { online: 99.8, d1: 96.3, d2: 96.9, overdue: 3.1 }, '英国卢顿仓': { online: 99.7, d1: 83.7, d2: 85.9, overdue: 14.1 }, '英国拉格比01仓': { online: 99.8, d1: 94.9, d2: 97.8, overdue: 2.2 }, '美国新泽西01仓': { online: 98.3, d1: 74.8, d2: 89.6, overdue: 10.4 }, '美国洛杉矶03仓': { online: 97.0, d1: 92.4, d2: 94.6, overdue: 5.4 } }
+const prevKpi = { online: 97.1, d1: 91.1, d2: 92.4, overdue: 7.6, notOnline: 433, notOnlineGt48: 18,
+  warehouseNotOnline: { '德国柏林01仓': 61, '英国卢顿仓': 131, '美国洛杉矶03仓': 4, '美国新泽西01仓': 14, '英国拉格比01仓': 223 },
+  warehouseKpi: { '德国柏林01仓': { online: 99.2, d1: 96.2, d2: 96.7, overdue: 3.3 }, '英国卢顿仓': { online: 96.6, d1: 83.2, d2: 85.0, overdue: 15.0 }, '美国洛杉矶03仓': { online: 99.1, d1: 93.3, d2: 95.9, overdue: 4.1 }, '美国新泽西01仓': { online: 89.1, d1: 67.2, d2: 80.5, overdue: 19.5 }, '英国拉格比01仓': { online: 91.4, d1: 87.4, d2: 89.8, overdue: 10.2 } }
 };
 const warehouseData = [
   { region:'欧洲', name:'德国柏林01仓', tickets:8119, online:99.2, d1:96.2, d2:96.7, overdue:3.3, notOnline:61, notOnline2448:0, notOnlineGt48:2, status:'ok' },
