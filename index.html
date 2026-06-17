@@ -16517,7 +16517,12 @@ function getDateFilteredRowData(rows, isChannelMode) {
           if (sr[7] === '否') cntNotOnline++;
         });
       }
-      return { ...row, tickets: sumT, online: +(sumOnline / sumT * 100).toFixed(1), d1: +(sumD1 / sumT * 100).toFixed(1), d2: +(sumD2 / sumT * 100).toFixed(1), overdue: sumT > 0 ? +(cntP2 / sumT * 100).toFixed(1) : 0, notOnlineGt48: cntGt48, notOnline2448: cnt2448, notOnline: cntNotOnline };
+      // SCAN_DATA 的 P=2 / notOnline 是仓库维度，不是渠道维度
+      // 渠道模式下 overdue 分母用仓库级票数，避免分子(仓库P2)÷分母(渠道票数) > 100%
+      let whSumT = 0;
+      const whDaily2 = warehouseDailyData[whName];
+      if (whDaily2) { dateIdx.forEach(i => { whSumT += (whDaily2.tickets[i] || 0); }); }
+      return { ...row, tickets: sumT, online: +(sumOnline / sumT * 100).toFixed(1), d1: +(sumD1 / sumT * 100).toFixed(1), d2: +(sumD2 / sumT * 100).toFixed(1), overdue: whSumT > 0 ? +(cntP2 / whSumT * 100).toFixed(1) : 0, notOnlineGt48: cntGt48, notOnline2448: cnt2448, notOnline: cntNotOnline };
     }
     // 仓库模式：用 warehouseDailyData
     const dateSet = new Set(dateIdx.map(i => labels[i]));
