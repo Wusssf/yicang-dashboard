@@ -16940,7 +16940,10 @@ let currentSelectedChannel = null;
 let trendChartInstance = null;
 
 function updateTrendChart(viewWarehouses, ch, titleName) {
-  const labels = allDailyData.labels;
+  const allLabels = allDailyData.labels;
+  const { start, end } = getSelectedDateRange();
+  const dateIdx = getDateIndices(allLabels, start, end);
+  const labels = dateIdx.map(i => allLabels[i]);
   let tickets, d1_rate, d2_rate, online_rate;
 
   // 更新趋势图标题
@@ -16956,52 +16959,50 @@ function updateTrendChart(viewWarehouses, ch, titleName) {
     // ── 单仓库（或渠道）：显示该仓库的每日出库量和利率 ──
     const whName = viewWarehouses[0];
     const whDaily = warehouseDailyData[whName];
+    let rawTickets, rawD1, rawD2, rawOnline;
 
     if (ch && channelDailyData[ch]) {
-      // 渠道级别：使用真实渠道每日数据
       const chDaily = channelDailyData[ch];
-      tickets     = chDaily.tickets;
-      d1_rate     = chDaily.d1_rate;
-      d2_rate     = chDaily.d2_rate;
-      online_rate = chDaily.online_rate;
+      rawTickets = chDaily.tickets; rawD1 = chDaily.d1_rate; rawD2 = chDaily.d2_rate; rawOnline = chDaily.online_rate;
     } else if (whDaily) {
-      tickets     = whDaily.tickets;
-      d1_rate     = whDaily.d1_rate;
-      d2_rate     = whDaily.d2_rate;
-      online_rate = whDaily.online_rate;
+      rawTickets = whDaily.tickets; rawD1 = whDaily.d1_rate; rawD2 = whDaily.d2_rate; rawOnline = whDaily.online_rate;
     }
 
-    // 单仓库/渠道：只保留有票数（>0）的日期
+    // 先按日期范围过滤，再筛选有票数的日期
     const idxMap = [];
-    tickets.forEach((t, i) => { if (t > 0) idxMap.push(i); });
-    useLabels   = idxMap.map(i => labels[i]);
-    tickets     = idxMap.map(i => tickets[i]);
-    d1_rate     = idxMap.map(i => d1_rate[i]);
-    d2_rate     = idxMap.map(i => d2_rate[i]);
-    online_rate = idxMap.map(i => online_rate[i]);
+    dateIdx.forEach(i => { if (rawTickets && rawTickets[i] > 0) idxMap.push(i); });
+    useLabels   = idxMap.map(i => allLabels[i]);
+    tickets     = idxMap.map(i => rawTickets[i]);
+    d1_rate     = idxMap.map(i => rawD1[i]);
+    d2_rate     = idxMap.map(i => rawD2[i]);
+    online_rate = idxMap.map(i => rawOnline[i]);
   } else {
-    // ── 多仓库：汇总当前可见仓库的每日数据（总体趋势） ──
-    tickets        = new Array(labels.length).fill(0);
-    const totalByDay   = new Array(labels.length).fill(0);
-    const d1Weighted   = new Array(labels.length).fill(0);
-    const d2Weighted   = new Array(labels.length).fill(0);
-    const olWeighted   = new Array(labels.length).fill(0);
+    // ── 多仓库：汇总当前可见仓库的每日数据（按日期范围过滤） ──
+    const nd = dateIdx.length;
+    tickets        = new Array(nd).fill(0);
+    const totalByDay   = new Array(nd).fill(0);
+    const d1Weighted   = new Array(nd).fill(0);
+    const d2Weighted   = new Array(nd).fill(0);
+    const olWeighted   = new Array(nd).fill(0);
 
     viewWarehouses.forEach(whName => {
       const whDaily = warehouseDailyData[whName];
       if (!whDaily) return;
-      whDaily.tickets.forEach((t, i) => {
-        tickets[i]      += t;
-        totalByDay[i]   += t;
-        d1Weighted[i]   += t * whDaily.d1_rate[i] / 100;
-        d2Weighted[i]   += t * whDaily.d2_rate[i] / 100;
-        olWeighted[i]   += t * whDaily.online_rate[i] / 100;
+      dateIdx.forEach((origIdx, di) => {
+        const t = whDaily.tickets[origIdx] || 0;
+        tickets[di]      += t;
+        totalByDay[di]   += t;
+        d1Weighted[di]   += t * (whDaily.d1_rate[origIdx] || 0) / 100;
+        d2Weighted[di]   += t * (whDaily.d2_rate[origIdx] || 0) / 100;
+        olWeighted[di]   += t * (whDaily.online_rate[origIdx] || 0) / 100;
       });
     });
 
     d1_rate     = totalByDay.map((t, i) => t > 0 ? Math.round(d1Weighted[i] / t * 100) : 0);
     d2_rate     = totalByDay.map((t, i) => t > 0 ? Math.round(d2Weighted[i] / t * 100) : 0);
     online_rate = totalByDay.map((t, i) => t > 0 ? Math.round(olWeighted[i] / t * 100) : 0);
+    // 多仓库下保留所有日期（含0票数的），不再额外过滤
+    useLabels = labels;
   }
 
   if (trendChartInstance) trendChartInstance.destroy();
@@ -18303,13 +18304,39 @@ function updateOutboundSection(region, wh) {
     whList = whList.filter(([name, _]) => name === wh);
   }
 
-  // 计算汇总
+  // 计算汇总（从outboundDailyData按日期范围动态计算）
+  const { start, end } = getSelectedDateRange();
+  const obLabels = outboundDailyData.labels;
+  const obDateIdx = getDateIndices(obLabels, start, end);
+  
+  // 为每个筛选仓计算日期过滤后的 total/timely/latest
+  const whAgg = {}; // { name: { total, timely, latestTotal, latestTimely } }
+  whList.forEach(([name]) => {
+    const wd = outboundDailyData.warehouses[name];
+    let total = 0, timely = 0, latestTotal = 0, latestTimely = 0;
+    if (wd) {
+      let lastIdx = -1;
+      obDateIdx.forEach(i => {
+        const t = wd.tickets[i] || 0;
+        total += t;
+        timely += t * (wd.rate[i] || 0) / 100;
+        if (t > 0) lastIdx = i;
+      });
+      if (lastIdx >= 0) {
+        latestTotal = wd.tickets[lastIdx] || 0;
+        latestTimely = latestTotal * (wd.rate[lastIdx] || 0) / 100;
+      }
+    }
+    whAgg[name] = { total, timely: Math.round(timely), latestTotal, latestTimely: Math.round(latestTimely) };
+  });
+
   let totalTickets = 0, totalTimely = 0, latestTotal = 0, latestTimely = 0;
-  whList.forEach(([_, d]) => {
-    totalTickets += d.total;
-    totalTimely += d.timely;
-    latestTotal += d.latestTotal;
-    latestTimely += d.latestTimely;
+  whList.forEach(([name]) => {
+    const a = whAgg[name];
+    totalTickets += a.total;
+    totalTimely += a.timely;
+    latestTotal += a.latestTotal;
+    latestTimely += a.latestTimely;
   });
   const totalRate = totalTickets > 0 ? +(totalTimely / totalTickets * 100).toFixed(1) : 0;
   const latestRate = latestTotal > 0 ? +(latestTimely / latestTotal * 100).toFixed(1) : 0;
@@ -18331,16 +18358,16 @@ function updateOutboundSection(region, wh) {
   tTag.style.color = totalRate >= 95 ? '#2e7d32' : totalRate >= 80 ? '#e65100' : '#c62828';
 
   const yLabel = document.getElementById('outKpiYesterdayTag');
-  // 从后往前找筛选仓中实际有出库数据的最新日期
-  let latestDateLabel = outboundDailyData.labels[outboundDailyData.labels.length - 1];
-  const labels = outboundDailyData.labels;
-  for (let i = labels.length - 1; i >= 0; i--) {
+  // 从后往前找筛选日期范围内有出库数据的最新日期
+  let latestDateLabel = obLabels[obDateIdx.length > 0 ? obDateIdx[obDateIdx.length - 1] : obLabels.length - 1];
+  for (let j = obDateIdx.length - 1; j >= 0; j--) {
+    const i = obDateIdx[j];
     let hasData = false;
     for (const [name] of whList) {
       const whDaily = outboundDailyData.warehouses[name];
       if (whDaily && whDaily.tickets[i] > 0) { hasData = true; break; }
     }
-    if (hasData) { latestDateLabel = labels[i]; break; }
+    if (hasData) { latestDateLabel = obLabels[i]; break; }
   }
   yLabel.textContent = `最新日期 ${latestDateLabel}`;
 
@@ -18361,8 +18388,9 @@ function updateOutboundSection(region, wh) {
     tbody.appendChild(regionRow);
 
     rows.forEach(([name, d]) => {
-      const wRate = d.total > 0 ? +(d.timely / d.total * 100).toFixed(1) : 0;
-      const wLatestRate = d.latestTotal > 0 ? +(d.latestTimely / d.latestTotal * 100).toFixed(1) : 0;
+      const a = whAgg[name];
+      const wRate = a.total > 0 ? +(a.timely / a.total * 100).toFixed(1) : 0;
+      const wLatestRate = a.latestTotal > 0 ? +(a.latestTimely / a.latestTotal * 100).toFixed(1) : 0;
       const statusCls = wLatestRate >= 95 ? 'status-ok' : wLatestRate >= 80 ? 'status-warn' : 'status-bad';
       const statusTxt = wLatestRate >= 95 ? '达标' : wLatestRate >= 80 ? '关注' : '异常';
       const rateColor = wRate >= 95 ? '#2e7d32' : wRate >= 80 ? '#1f6feb' : '#c62828';
@@ -18375,8 +18403,8 @@ function updateOutboundSection(region, wh) {
       tbody.innerHTML += `<tr>
         <td><strong>${name}</strong></td>
         <td style="color:#5a8ab5;">${d.cutoff}</td>
-        <td>${d.total.toLocaleString()}</td>
-        <td style="color:${lrColor};font-weight:600;">${d.latestTotal}</td>
+        <td>${a.total.toLocaleString()}</td>
+        <td style="color:${lrColor};font-weight:600;">${a.latestTotal}</td>
         <td style="color:${lrColor};font-weight:600;">${wLatestRate}%</td>
         <td><span class="status-badge ${statusCls}">${statusTxt}</span></td>
         <td class="tz-col-cell"><div class="tz-item active">${tzStr}</div></td>
@@ -18390,7 +18418,10 @@ function updateOutboundSection(region, wh) {
 // ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
 
 function updateOutboundTrendChart(region, wh) {
-  const labels = outboundDailyData.labels;
+  const allLabels = outboundDailyData.labels;
+  const { start, end } = getSelectedDateRange();
+  const obDateIdx = getDateIndices(allLabels, start, end);
+  const labels = obDateIdx.map(i => allLabels[i]);
   const regionMap = { europe:'欧洲', usa:'美国', japan:'日本' };
 
   // 确定要汇总的仓库列表
@@ -18403,17 +18434,18 @@ function updateOutboundTrendChart(region, wh) {
     targetWhs = targetWhs.filter(w => w === wh);
   }
 
-  // 汇总每日数据
-  const n = labels.length;
-  let totalTickets = new Array(n).fill(0);
-  let totalTimely = new Array(n).fill(0);
+  // 汇总每日数据（按日期范围过滤）
+  const nd = obDateIdx.length;
+  let totalTickets = new Array(nd).fill(0);
+  let totalTimely = new Array(nd).fill(0);
 
   targetWhs.forEach(w => {
     const wd = outboundDailyData.warehouses[w];
     if (!wd) return;
-    wd.tickets.forEach((t, i) => {
-      totalTickets[i] += t;
-      totalTimely[i] += t * wd.rate[i] / 100;
+    obDateIdx.forEach((origIdx, di) => {
+      const t = wd.tickets[origIdx] || 0;
+      totalTickets[di] += t;
+      totalTimely[di] += t * (wd.rate[origIdx] || 0) / 100;
     });
   });
 
