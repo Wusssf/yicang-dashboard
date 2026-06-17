@@ -15946,7 +15946,9 @@ const SCAN_DATA = [
   </div>
   <div class="filter-group">
     <span class="filter-label">出库日期</span>
-    <span style="font-size:13px;color:#1a3a5c;font-weight:600;" id="scanDateRange">6/1 ~ 6/15</span>
+    <input type="date" class="filter-input" id="filterStartDate" value="2026-06-01" onchange="onDateChange()">
+    <span style="font-size:13px;color:#5a8ab5;margin:0 4px;">~</span>
+    <input type="date" class="filter-input" id="filterEndDate" value="2026-06-15" onchange="onDateChange()">
   </div>
   <button class="filter-btn" onclick="applyFilter()">🔍 查询</button>
   <button class="filter-btn secondary" onclick="resetFilter()">↺ 重置</button>
@@ -16419,27 +16421,164 @@ function renderOutTable(data) {
   });
 }
 
-// 渲染出库及时率明细表（已移除）
 renderTable(warehouseData);
 
-function updateKPI(data) {
-  if (!data || data.length === 0) {
-    document.getElementById('kpiOnlineRate').innerHTML = '—<span class="kpi-unit">%</span>';
-    document.getElementById('kpiD1Rate').innerHTML = '—<span class="kpi-unit">%</span>';
-    document.getElementById('kpiD2Rate').innerHTML = '—<span class="kpi-unit">%</span>';
-    document.getElementById('kpiOverdueRate').innerHTML = '—<span class="kpi-unit">%</span>';
-    document.getElementById('kpiNotOnline').innerHTML = '—<span class="kpi-unit">票</span>';
+// ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+//  日期筛选器工具函数
+// ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+function parseDate(d) {
+  if (!d) return null;
+  const m = d.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (m) return new Date(+m[1], +m[2] - 1, +m[3]);
+  return null;
+}
+
+function getSelectedDateRange() {
+  const startEl = document.getElementById('filterStartDate');
+  const endEl = document.getElementById('filterEndDate');
+  return { start: startEl ? startEl.value || '' : '', end: endEl ? endEl.value || '' : '' };
+}
+
+function isDateInRange(dateStr, startStr, endStr) {
+  if (!dateStr || !startStr || !endStr) return true;
+  const d = parseDate(dateStr);
+  if (!d || isNaN(d)) return false;
+  const s = new Date(startStr + 'T00:00:00');
+  const e = new Date(endStr + 'T23:59:59');
+  if (isNaN(s) || isNaN(e)) return true;
+  return d >= s && d <= e;
+}
+
+function getDateIndices(labels, start, end) {
+  if (!start || !end) return labels.map((_, i) => i);
+  const idx = [];
+  labels.forEach((label, i) => {
+    const parts = label.split('/');
+    if (parts.length !== 2) return;
+    const [m, d] = parts.map(Number);
+    if (isNaN(m) || isNaN(d)) return;
+    const date = new Date(2026, m - 1, d);
+    const s = new Date(start + 'T00:00:00');
+    const e = new Date(end + 'T23:59:59');
+    if (!isNaN(date) && date >= s && date <= e) idx.push(i);
+  });
+  return idx;
+}
+
+function onDateChange() {
+  const startEl = document.getElementById('filterStartDate');
+  const endEl = document.getElementById('filterEndDate');
+  if (startEl && endEl && startEl.value && endEl.value && new Date(startEl.value) > new Date(endEl.value)) {
+    alert('开始日期不能晚于结束日期！');
     return;
   }
-  const totalTickets = data.reduce((s, d) => s + d.tickets, 0);
-  const totalNotOnline = data.reduce((s, d) => s + d.notOnline, 0);
-  const totalNotOnlineGt48 = data.reduce((s, d) => s + (d.notOnlineGt48 || 0), 0);
-  const wOnline  = data.reduce((s, d) => s + d.online  * d.tickets, 0) / totalTickets;
-  const wD1      = data.reduce((s, d) => s + d.d1      * d.tickets, 0) / totalTickets;
-  const wD2      = data.reduce((s, d) => s + d.d2      * d.tickets, 0) / totalTickets;
-  const wOverdue = data.reduce((s, d) => s + d.overdue * d.tickets, 0) / totalTickets;
+  applyFilter();
+}
 
-  // 按仓库筛选时取该仓库上期KPI，否则取全局prevKpi
+// 辅助：按日期范围从每日数据动态计算仓库指标
+function getDateFilteredRowData(rows, isChannelMode) {
+  const { start, end } = getSelectedDateRange();
+  const labels = allDailyData.labels;
+  const dateIdx = getDateIndices(labels, start, end);
+  if (dateIdx.length === labels.length || dateIdx.length === 0) return rows;
+
+  const dateSet = new Set(dateIdx.map(i => labels[i]));
+  return rows.map(row => {
+    let whName = isChannelMode ? (row.name || '').replace(/（[^）]*）$/, '') : row.name;
+    const whDaily = warehouseDailyData[whName];
+    if (!whDaily) return row;
+    let sumT = 0, sumOnline = 0, sumD1 = 0, sumD2 = 0;
+    dateIdx.forEach(i => {
+      const t = whDaily.tickets[i] || 0;
+      if (t > 0) { sumT += t; sumOnline += t * (whDaily.online_rate[i] || 0) / 100; sumD1 += t * (whDaily.d1_rate[i] || 0) / 100; sumD2 += t * (whDaily.d2_rate[i] || 0) / 100; }
+    });
+    if (sumT === 0) return { ...row, tickets: 0, online: 0, d1: 0, d2: 0, overdue: 0, notOnlineGt48: 0, notOnline2448: 0, notOnline: 0 };
+    let cnt2448 = 0, cntGt48 = 0, cntNotOnline = 0;
+    if (typeof SCAN_DATA !== 'undefined') {
+      SCAN_DATA.forEach(sr => {
+        if (sr[1] !== whName) return;
+        const m = sr[6].match(/^\d{4}-0?(\d{1,2})-0?(\d{1,2})/);
+        if (!m) return;
+        const mmdd = parseInt(m[1]) + '/' + parseInt(m[2]);
+        if (!dateSet.has(mmdd)) return;
+        if (sr[9] === '2' && sr[7] === '否') cntGt48++;
+        if (sr[9] === '1' && sr[8] === '否') cnt2448++;
+        if (sr[7] === '否') cntNotOnline++;
+      });
+    }
+    return { ...row, tickets: sumT, online: +(sumOnline / sumT * 100).toFixed(1), d1: +(sumD1 / sumT * 100).toFixed(1), d2: +(sumD2 / sumT * 100).toFixed(1), overdue: +(100 - sumOnline / sumT * 100).toFixed(1), notOnlineGt48: cntGt48, notOnline2448: cnt2448, notOnline: cntNotOnline };
+  });
+}
+
+// ── 安全 DOM 写（元素不存在也不报错）──
+function setEl(id, html) { const el = document.getElementById(id); if (el) el.innerHTML = html; }
+function setBadge(selector, cls, txt) { const el = document.querySelector(selector); if (el) { el.className = cls; el.textContent = txt; } }
+
+// ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+//  KPI
+// ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+function updateKPI(data) {
+  if (!data || data.length === 0) {
+    setEl('kpiOnlineRate', '—<span class="kpi-unit">%</span>');
+    setEl('kpiD1Rate', '—<span class="kpi-unit">%</span>');
+    setEl('kpiD2Rate', '—<span class="kpi-unit">%</span>');
+    setEl('kpiOverdueRate', '—<span class="kpi-unit">%</span>');
+    setEl('kpiNotOnline', '—<span class="kpi-unit">票</span>');
+    setEl('kpiOnlineRateTrend', '<span class="trend-flat">—</span>');
+    setEl('kpiD1RateTrend', '<span class="trend-flat">—</span>');
+    setEl('kpiD2RateTrend', '<span class="trend-flat">—</span>');
+    setEl('kpiOverdueRateTrend', '<span class="trend-flat">—</span>');
+    setEl('kpiNotOnlineTrend', '');
+    return;
+  }
+
+  const { start, end } = getSelectedDateRange();
+  const dateIdx = getDateIndices(allDailyData.labels, start, end);
+  const isFullDateRange = (allDailyData.labels && dateIdx.length === allDailyData.labels.length);
+
+  let totalTickets, totalNotOnline, totalNotOnlineGt48, wOnline, wD1, wD2, wOverdue;
+
+  if (dateIdx.length === 0) {
+    totalTickets = 0; wOnline = 0; wD1 = 0; wD2 = 0; wOverdue = 0;
+    totalNotOnline = 0; totalNotOnlineGt48 = 0;
+  } else {
+    const isSingleWh = data.length === 1 && data[0].name && warehouseDailyData[data[0].name];
+    if (isSingleWh) {
+      const whDaily = warehouseDailyData[data[0].name];
+      let sumT = 0, sumOnline = 0, sumD1 = 0, sumD2 = 0;
+      dateIdx.forEach(i => {
+        const t = (whDaily.tickets[i] || 0);
+        if (t > 0) { sumT += t; sumOnline += t * (whDaily.online_rate[i] || 0) / 100; sumD1 += t * (whDaily.d1_rate[i] || 0) / 100; sumD2 += t * (whDaily.d2_rate[i] || 0) / 100; }
+      });
+      totalTickets = sumT;
+      wOnline = sumT > 0 ? +(sumOnline / sumT * 100).toFixed(1) : 0;
+      wD1 = sumT > 0 ? +(sumD1 / sumT * 100).toFixed(1) : 0;
+      wD2 = sumT > 0 ? +(sumD2 / sumT * 100).toFixed(1) : 0;
+      wOverdue = sumT > 0 ? +(100 - sumOnline / sumT * 100).toFixed(1) : 0;
+    } else {
+      const whNames = data.map(d => d.name).filter(n => warehouseDailyData[n]);
+      let sumT = 0, sumOnline = 0, sumD1 = 0, sumD2 = 0;
+      if (whNames.length > 0) {
+        dateIdx.forEach(i => {
+          whNames.forEach(whName => {
+            const whDaily = warehouseDailyData[whName];
+            const t = (whDaily.tickets[i] || 0);
+            if (t > 0) { sumT += t; sumOnline += t * (whDaily.online_rate[i] || 0) / 100; sumD1 += t * (whDaily.d1_rate[i] || 0) / 100; sumD2 += t * (whDaily.d2_rate[i] || 0) / 100; }
+          });
+        });
+        totalTickets = sumT;
+        wOnline = sumT > 0 ? +(sumOnline / sumT * 100).toFixed(1) : 0;
+        wD1 = sumT > 0 ? +(sumD1 / sumT * 100).toFixed(1) : 0;
+        wD2 = sumT > 0 ? +(sumD2 / sumT * 100).toFixed(1) : 0;
+        wOverdue = sumT > 0 ? +(100 - sumOnline / sumT * 100).toFixed(1) : 0;
+      } else {
+        totalTickets = 0; wOnline = 0; wD1 = 0; wD2 = 0; wOverdue = 0;
+      }
+    }
+    totalNotOnline = data.reduce((s, d) => s + d.notOnline, 0);
+    totalNotOnlineGt48 = data.reduce((s, d) => s + (d.notOnlineGt48 || 0), 0);
+  }
+
   const getPrevKpi = (key) => {
     if (data.length === 1 && data[0].name && prevKpi.warehouseKpi && prevKpi.warehouseKpi[data[0].name]) {
       return prevKpi.warehouseKpi[data[0].name][key];
@@ -16447,50 +16586,52 @@ function updateKPI(data) {
     return prevKpi[key];
   };
   const trendStr = (v, base) => {
+    if (typeof v !== 'number' || typeof base !== 'number' || isNaN(v) || isNaN(base)) {
+      return '<span class="trend-flat">—</span>';
+    }
     const diff = v - base;
     if (Math.abs(diff) < 0.05) return '<span class="trend-flat">— ±0%</span>';
+    const pct = (Math.abs(diff) < 0.5) ? (Math.round(Math.abs(diff) * 10) / 10).toFixed(1) : String(Math.round(Math.abs(diff)));
     return diff > 0
-      ? `<span class="trend-up">▲ +${Math.round(diff)}%</span>`
-      : `<span class="trend-down">▼ −${Math.round(Math.abs(diff))}%</span>`;
+      ? `<span class="trend-up">▲ +${pct}%</span>`
+      : `<span class="trend-down">▼ −${pct}%</span>`;
   };
   const badgeHtml = (v, excellent, good, warn) => v >= excellent ? 'badge-excellent' : v >= good ? 'badge-good' : v >= warn ? 'badge-warn' : 'badge-bad';
   const statusTxt = (v, excellent, good, warn) => v >= excellent ? '优秀' : v >= good ? '达标' : v >= warn ? '关注' : '警告';
-  // 超期上网率是反向的：越低越好
   const badgeHtmlInv = (v, good, warn) => v <= good ? 'badge-good' : v <= warn ? 'badge-warn' : 'badge-bad';
   const statusTxtInv = (v, good, warn) => v <= good ? '达标' : v <= warn ? '关注' : '警告';
 
-  document.getElementById('kpiOnlineRate').innerHTML = `${Math.round(wOnline)}<span class="kpi-unit">%</span>`;
-  document.getElementById('kpiOnlineRateTrend').innerHTML = trendStr(wOnline, getPrevKpi('online'));
-  document.querySelector('#kpiOnlineRow .kpi-card.green .kpi-badge').className = `kpi-badge ${badgeHtml(wOnline, 90, 80, 60)}`;
-  document.querySelector('#kpiOnlineRow .kpi-card.green .kpi-badge').textContent = statusTxt(wOnline, 90, 80, 60);
+  setEl('kpiOnlineRate', `${Math.round(wOnline)}<span class="kpi-unit">%</span>`);
+  setEl('kpiOnlineRateTrend', isFullDateRange ? trendStr(wOnline, getPrevKpi('online')) : '');
+  setBadge('#kpiOnlineRow .kpi-card.green .kpi-badge', `kpi-badge ${badgeHtml(wOnline, 90, 80, 60)}`, statusTxt(wOnline, 90, 80, 60));
 
-  document.getElementById('kpiD1Rate').innerHTML = `${Math.round(wD1)}<span class="kpi-unit">%</span>`;
-  document.getElementById('kpiD1RateTrend').innerHTML = trendStr(wD1, getPrevKpi('d1'));
-  document.querySelector('#kpiOnlineRow .kpi-card.blue .kpi-badge').className = `kpi-badge ${badgeHtml(wD1, 90, 80, 60)}`;
-  document.querySelector('#kpiOnlineRow .kpi-card.blue .kpi-badge').textContent = statusTxt(wD1, 90, 80, 60);
+  setEl('kpiD1Rate', `${Math.round(wD1)}<span class="kpi-unit">%</span>`);
+  setEl('kpiD1RateTrend', isFullDateRange ? trendStr(wD1, getPrevKpi('d1')) : '');
+  setBadge('#kpiOnlineRow .kpi-card.blue .kpi-badge', `kpi-badge ${badgeHtml(wD1, 90, 80, 60)}`, statusTxt(wD1, 90, 80, 60));
 
-  document.getElementById('kpiD2Rate').innerHTML = `${Math.round(wD2)}<span class="kpi-unit">%</span>`;
-  document.getElementById('kpiD2RateTrend').innerHTML = trendStr(wD2, getPrevKpi('d2'));
-  document.querySelector('#kpiOnlineRow .kpi-card.yellow .kpi-badge').className = `kpi-badge ${badgeHtml(wD2, 90, 80, 60)}`;
-  document.querySelector('#kpiOnlineRow .kpi-card.yellow .kpi-badge').textContent = statusTxt(wD2, 90, 80, 60);
+  setEl('kpiD2Rate', `${Math.round(wD2)}<span class="kpi-unit">%</span>`);
+  setEl('kpiD2RateTrend', isFullDateRange ? trendStr(wD2, getPrevKpi('d2')) : '');
+  setBadge('#kpiOnlineRow .kpi-card.yellow .kpi-badge', `kpi-badge ${badgeHtml(wD2, 90, 80, 60)}`, statusTxt(wD2, 90, 80, 60));
 
-  document.getElementById('kpiOverdueRate').innerHTML = `${Math.round(wOverdue)}<span class="kpi-unit">%</span>`;
-  // 超期率是反向指标：越低越好，上涨=坏事(红色▼)，下降=好事(绿色▲)
-  const overdueDiff = wOverdue - getPrevKpi('overdue');
-  if (Math.abs(overdueDiff) < 0.05) {
-    document.getElementById('kpiOverdueRateTrend').innerHTML = '<span class="trend-flat">— ±0%</span>';
-  } else if (overdueDiff > 0) {
-    document.getElementById('kpiOverdueRateTrend').innerHTML = `<span class="trend-down">■ +${Math.round(overdueDiff)}%</span>`;
+  setEl('kpiOverdueRate', `${Math.round(wOverdue)}<span class="kpi-unit">%</span>`);
+  if (isFullDateRange) {
+    const overdueDiff = wOverdue - getPrevKpi('overdue');
+    if (typeof wOverdue !== 'number' || Math.abs(overdueDiff) < 0.05) {
+      setEl('kpiOverdueRateTrend', '<span class="trend-flat">— ±0%</span>');
+    } else if (overdueDiff > 0) {
+      const overduePct = Math.abs(overdueDiff) < 0.5 ? (Math.round(Math.abs(overdueDiff) * 10) / 10).toFixed(1) : String(Math.round(Math.abs(overdueDiff)));
+      setEl('kpiOverdueRateTrend', `<span class="trend-down">■ +${overduePct}%</span>`);
+    } else {
+      const overduePct = Math.abs(overdueDiff) < 0.5 ? (Math.round(Math.abs(overdueDiff) * 10) / 10).toFixed(1) : String(Math.round(Math.abs(overdueDiff)));
+      setEl('kpiOverdueRateTrend', `<span class="trend-up">■ −${overduePct}%</span>`);
+    }
   } else {
-    document.getElementById('kpiOverdueRateTrend').innerHTML = `<span class="trend-up">■ −${Math.round(Math.abs(overdueDiff))}%</span>`;
+    setEl('kpiOverdueRateTrend', '');
   }
-  document.querySelector('#kpiOnlineRow .kpi-card.red .kpi-badge').className = `kpi-badge ${badgeHtmlInv(wOverdue, 5, 15)}`;
-  document.querySelector('#kpiOnlineRow .kpi-card.red .kpi-badge').textContent = statusTxtInv(wOverdue, 5, 15);
+  setBadge('#kpiOnlineRow .kpi-card.red .kpi-badge', `kpi-badge ${badgeHtmlInv(wOverdue, 5, 15)}`, statusTxtInv(wOverdue, 5, 15));
 
-  document.getElementById('kpiNotOnline').innerHTML = `${totalNotOnlineGt48}<span class="kpi-unit">票</span>`;
-  document.getElementById('kpiNotOnlineTrend').innerHTML = '';
-  if (false) {
-  }
+  setEl('kpiNotOnline', `${totalNotOnlineGt48}<span class="kpi-unit">票</span>`);
+  setEl('kpiNotOnlineTrend', '');
 }
 
 // ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
@@ -16552,6 +16693,9 @@ function applyFilter() {
     viewWarehouses = data.map(d => d.name);
   }
 
+  // 日期范围过滤：动态重算 rates/tickets
+  data = getDateFilteredRowData(data, ch !== 'all');
+
   renderTable(data);
   updateKPI(data);
 
@@ -16602,6 +16746,11 @@ function resetFilter() {
   Object.keys(channelScanData).forEach(ch => {
     chSelect.innerHTML += `<option value="${ch}">${ch}</option>`;
   });
+  // 重置日期输入
+  const startEl = document.getElementById('filterStartDate');
+  const endEl = document.getElementById('filterEndDate');
+  if (startEl) startEl.value = '2026-06-01';
+  if (endEl) endEl.value = '2026-06-15';
   renderTable(warehouseData);
   updateKPI(warehouseData);
   updatePieChart('all', warehouseData.reduce((s, d) => s + d.tickets, 0), null);
@@ -18497,8 +18646,11 @@ function exportOutboundTrendData() {
   const wh = document.getElementById('filterWarehouse').value;
   const prefix = getExportPrefix();
   const regionMap = { europe:'欧洲', usa:'美国', japan:'日本' };
+  const { start, end } = getSelectedDateRange();
 
   const labels = outboundDailyData.labels;
+  const obDateIdx = getDateIndices(labels, start, end);
+  const obDateIdxSet = (obDateIdx.length < labels.length && obDateIdx.length > 0) ? new Set(obDateIdx) : null;
 
   // Sheet 1: 汇总
   const sheet1Headers = ['出库日期(当地)', '仓库', '出库票数', '出库及时率'];
@@ -18512,6 +18664,7 @@ function exportOutboundTrendData() {
     if (wh !== 'all' && wname !== wh) return;
 
     wd.tickets.forEach((t, i) => {
+      if (obDateIdxSet && !obDateIdxSet.has(i)) return;
       if (t > 0) {
         sheet1Rows.push([labels[i], wname, t, Math.min(100, wd.rate[i]) + '%']);
       }
@@ -18535,6 +18688,7 @@ function exportOutboundTrendData() {
         if (rr !== regionMap[region]) return;
       }
       if (wh !== 'all' && rw !== wh) return;
+      if (!isDateInRange(row[5], start, end)) return; // row[5] = 出库时间
       ntRows.push(row);
     });
     if (ntRows.length > 1) {
@@ -18564,6 +18718,7 @@ function exportData() {
   const wh = document.getElementById('filterWarehouse').value;
   const prefix = getExportPrefix();
   const regionMap = { japan:'日本', europe:'欧洲', usa:'美国' };
+  const { start, end } = getSelectedDateRange();
 
   // 导出用的6列表头（跳过出库状态）
   const exportHeaders = ["客户代码","发货仓库","出库单号","服务商单号","服务渠道","出库时间"];
@@ -18585,6 +18740,7 @@ function exportData() {
   if (typeof SCAN_DATA !== 'undefined' && SCAN_DATA.length > 0) {
     SCAN_DATA.forEach(row => {
       if (!passFilter(row)) return;
+      if (!isDateInRange(row[6], start, end)) return;
       const oVal = row[7]; // 是否已扫描
       const nVal = row[8]; // 是否在D2内扫描
       const pVal = row[9]; // 超时标记
@@ -18630,8 +18786,11 @@ function exportTrendData() {
   const ch = document.getElementById('filterChannel').value;
   const prefix = getExportPrefix();
   const regionMap = { japan:'日本', europe:'欧洲', usa:'美国' };
+  const { start, end } = getSelectedDateRange();
 
   const DATES = allDailyData.labels;
+  const dateIdx = getDateIndices(DATES, start, end);
+  const dateIdxSet = (dateIdx.length < DATES.length && dateIdx.length > 0) ? new Set(dateIdx) : null;
   const headers = ['发货仓库', '出库日期_当地Format', '服务渠道', '每日出库总数', 'D1扫描率', 'D2扫描率', '上网率'];
   const rows = [headers];
 
@@ -18644,6 +18803,7 @@ function exportTrendData() {
     }
 
     DATES.forEach((date, i) => {
+      if (dateIdxSet && !dateIdxSet.has(i)) return;
       const t = cd.tickets[i];
       if (t > 0) {
         rows.push([cd.warehouse, date, channelName, t, Math.round(cd.d1_rate[i])+'%', Math.round(cd.d2_rate[i])+'%', Math.round(cd.online_rate[i])+'%']);
