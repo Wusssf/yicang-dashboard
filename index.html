@@ -16298,11 +16298,11 @@ const prevKpi = { online: 97.1, d1: 91.1, d2: 92.4, overdue: 7.6, notOnline: 433
   warehouseKpi: { '德国柏林01仓': { online: 99.2, d1: 96.2, d2: 96.7, overdue: 3.3 }, '英国卢顿仓': { online: 96.6, d1: 83.2, d2: 85.0, overdue: 15.0 }, '美国洛杉矶03仓': { online: 99.1, d1: 93.3, d2: 95.9, overdue: 4.1 }, '美国新泽西01仓': { online: 89.1, d1: 67.2, d2: 80.5, overdue: 19.5 }, '英国拉格比01仓': { online: 91.4, d1: 87.4, d2: 89.8, overdue: 10.2 } }
 };
 const warehouseData = [
-  { region:'欧洲', name:'德国柏林01仓', tickets:356, online:96.9, d1:0.0, d2:8.7, overdue:91.3, notOnline:11, notOnline2448:0, notOnlineGt48:0, status:'ok' },
-  { region:'美国', name:'美国新泽西01仓', tickets:25, online:48.0, d1:0.0, d2:8.0, overdue:92.0, notOnline:13, notOnline2448:0, notOnlineGt48:0, status:'ok' },
-  { region:'美国', name:'美国洛杉矶03仓', tickets:111, online:16.2, d1:0.0, d2:6.3, overdue:93.7, notOnline:93, notOnline2448:0, notOnlineGt48:0, status:'ok' },
-  { region:'欧洲', name:'英国卢顿仓', tickets:561, online:94.5, d1:0.0, d2:13.4, overdue:86.6, notOnline:31, notOnline2448:0, notOnlineGt48:0, status:'ok' },
-  { region:'欧洲', name:'英国拉格比01仓', tickets:270, online:48.5, d1:0.0, d2:30.0, overdue:70.0, notOnline:139, notOnline2448:0, notOnlineGt48:0, status:'ok' }
+  { region:'欧洲', name:'德国柏林01仓', tickets:356, online:96.9, d1:0.0, d2:8.7, overdue:91.3, notOnline:11, notOnline2448:0, notOnlineGt48:5, status:'ok' },
+  { region:'美国', name:'美国新泽西01仓', tickets:25, online:48.0, d1:0.0, d2:8.0, overdue:92.0, notOnline:13, notOnline2448:0, notOnlineGt48:1, status:'ok' },
+  { region:'美国', name:'美国洛杉矶03仓', tickets:111, online:16.2, d1:0.0, d2:6.3, overdue:93.7, notOnline:93, notOnline2448:0, notOnlineGt48:10, status:'ok' },
+  { region:'欧洲', name:'英国卢顿仓', tickets:561, online:94.5, d1:0.0, d2:13.4, overdue:86.6, notOnline:31, notOnline2448:0, notOnlineGt48:15, status:'ok' },
+  { region:'欧洲', name:'英国拉格比01仓', tickets:270, online:48.5, d1:0.0, d2:30.0, overdue:70.0, notOnline:139, notOnline2448:0, notOnlineGt48:7, status:'ok' }
 ];
 
 // 仓库 → 渠道映射（来自扫描sheet实际数据）
@@ -16322,13 +16322,13 @@ const regionWarehouses = {
 
 // 物流渠道汇总数据（用于筛选联动和饼图）
 const channelScanData = {
-  '柏林仓--备用DHL-欧洲全境': { warehouse:'德国柏林01仓', region:'欧洲', tickets:353, online:96.9, d1:0.0, d2:8.5, overdue:91.5, notOnline:11, notOnline2448:0, notOnlineGt48:0 },
-  'USPS-GA-NJ-FS': { warehouse:'美国新泽西01仓', region:'美国', tickets:25, online:48.0, d1:0.0, d2:8.0, overdue:92.0, notOnline:13, notOnline2448:0, notOnlineGt48:0 },
-  '洛杉矶3仓-USPS-CA': { warehouse:'美国洛杉矶03仓', region:'美国', tickets:111, online:16.2, d1:0.0, d2:6.3, overdue:93.7, notOnline:93, notOnline2448:0, notOnlineGt48:0 },
-  '卢顿-EVRI-英国本土': { warehouse:'英国卢顿仓', region:'欧洲', tickets:484, online:98.6, d1:0.0, d2:6.2, overdue:93.8, notOnline:7, notOnline2448:0, notOnlineGt48:0 },
-  '卢顿-皇邮-英国全境': { warehouse:'英国卢顿仓', region:'欧洲', tickets:77, online:68.8, d1:0.0, d2:58.4, overdue:41.6, notOnline:24, notOnline2448:0, notOnlineGt48:0 },
-  '拉格比-EVRI-英国境内': { warehouse:'英国拉格比01仓', region:'欧洲', tickets:62, online:67.7, d1:0.0, d2:33.9, overdue:66.1, notOnline:20, notOnline2448:0, notOnlineGt48:0 },
-  '拉格比-皇邮-英国全境': { warehouse:'英国拉格比01仓', region:'欧洲', tickets:208, online:42.8, d1:0.0, d2:28.8, overdue:71.2, notOnline:119, notOnline2448:0, notOnlineGt48:0 }
+  '柏林仓--备用DHL-欧洲全境': { warehouse:'德国柏林01仓', region:'欧洲', tickets:353, online:96.9, d1:0.0, d2:8.5, overdue:91.5, notOnline:11, notOnline2448:0, notOnlineGt48:5 },
+  'USPS-GA-NJ-FS': { warehouse:'美国新泽西01仓', region:'美国', tickets:25, online:48.0, d1:0.0, d2:8.0, overdue:92.0, notOnline:13, notOnline2448:0, notOnlineGt48:1 },
+  '洛杉矶3仓-USPS-CA': { warehouse:'美国洛杉矶03仓', region:'美国', tickets:111, online:16.2, d1:0.0, d2:6.3, overdue:93.7, notOnline:93, notOnline2448:0, notOnlineGt48:10 },
+  '卢顿-EVRI-英国本土': { warehouse:'英国卢顿仓', region:'欧洲', tickets:484, online:98.6, d1:0.0, d2:6.2, overdue:93.8, notOnline:7, notOnline2448:0, notOnlineGt48:6 },
+  '卢顿-皇邮-英国全境': { warehouse:'英国卢顿仓', region:'欧洲', tickets:77, online:68.8, d1:0.0, d2:58.4, overdue:41.6, notOnline:24, notOnline2448:0, notOnlineGt48:9 },
+  '拉格比-EVRI-英国境内': { warehouse:'英国拉格比01仓', region:'欧洲', tickets:62, online:67.7, d1:0.0, d2:33.9, overdue:66.1, notOnline:20, notOnline2448:0, notOnlineGt48:3 },
+  '拉格比-皇邮-英国全境': { warehouse:'英国拉格比01仓', region:'欧洲', tickets:208, online:42.8, d1:0.0, d2:28.8, overdue:71.2, notOnline:119, notOnline2448:0, notOnlineGt48:4 }
 };
 
 // 物流渠道饼图数据（按实际出单量）
