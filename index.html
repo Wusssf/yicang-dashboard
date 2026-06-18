@@ -16474,81 +16474,12 @@ function onDateChange() {
 }
 
 // 辅助：按日期范围从每日数据动态计算仓库指标
-function getDateFilteredRowData(rows, isChannelMode) {
-  const { start, end } = getSelectedDateRange();
-  const labels = allDailyData.labels;
-  const dateIdx = getDateIndices(labels, start, end);
-  if (dateIdx.length === labels.length || dateIdx.length === 0) return rows;
-
-  return rows.map(row => {
-    let whName = isChannelMode ? (row.name || '').replace(/（[^）]*）$/, '') : row.name;
-    // 渠道模式：优先用 channelDailyData（与 updateTrendChart 数据源一致）
-    let channelName = null;
-    if (isChannelMode) {
-      const mch = (row.name || '').match(/（([^）]*)）$/);
-      channelName = mch ? mch[1] : null;
-    }
-    const chDaily = (channelName && typeof channelDailyData !== 'undefined') ? channelDailyData[channelName] : null;
-    if (chDaily) {
-      // 用渠道级每日数据计算（与 updateTrendChart 一致）
-      let sumT = 0, sumOnline = 0, sumD1 = 0, sumD2 = 0;
-      dateIdx.forEach(i => {
-        const t = chDaily.tickets[i] || 0;
-        if (t > 0) { sumT += t; sumOnline += t * (chDaily.online_rate[i] || 0) / 100; sumD1 += t * (chDaily.d1_rate[i] || 0) / 100; sumD2 += t * (chDaily.d2_rate[i] || 0) / 100; }
-      });
-      if (sumT === 0) return { ...row, tickets: 0, online: 0, d1: 0, d2: 0, overdue: 0, notOnlineGt48: 0, notOnline2448: 0, notOnline: 0 };
-      // SCAN_DATA 统计仍用仓库名（SCAN_DATA 是仓库维度的）
-      // P=0:24h内, P=1:24-48h, P=2:超期上网
-      const dateSetForScan = new Set(dateIdx.map(i => labels[i]));
-      let cnt2448 = 0, cntGt48 = 0, cntNotOnline = 0;
-      if (typeof SCAN_DATA !== 'undefined') {
-        SCAN_DATA.forEach(sr => {
-          if (sr[1] !== whName) return;
-          const m = sr[6].match(/^\d{4}-0?(\d{1,2})-0?(\d{1,2})/);
-          if (!m) return;
-          const mmdd = parseInt(m[1]) + '/' + parseInt(m[2]);
-          if (!dateSetForScan.has(mmdd)) return;
-          if (sr[9] === '2' && sr[7] === '否') cntGt48++;
-          if (sr[9] === '1' && sr[8] === '否') cnt2448++;
-          if (sr[7] === '否') cntNotOnline++;
-        });
-      }
-      // ★ 超期上网 = N列(是否在D2内扫描) = 否 的全部订单占比 = 100 - d2（因d1=0）
-      return { ...row, tickets: sumT, online: +(sumOnline / sumT * 100).toFixed(1), d1: +(sumD1 / sumT * 100).toFixed(1), d2: +(sumD2 / sumT * 100).toFixed(1), overdue: +(100 - sumD2 / sumT * 100).toFixed(1), notOnlineGt48: cntGt48, notOnline2448: cnt2448, notOnline: cntNotOnline };
-    }
-    // 仓库模式：用 warehouseDailyData
-    const dateSet = new Set(dateIdx.map(i => labels[i]));
-    const whDaily = warehouseDailyData[whName];
-    if (!whDaily) return row;
-    let sumT = 0, sumOnline = 0, sumD1 = 0, sumD2 = 0;
-    dateIdx.forEach(i => {
-      const t = whDaily.tickets[i] || 0;
-      if (t > 0) { sumT += t; sumOnline += t * (whDaily.online_rate[i] || 0) / 100; sumD1 += t * (whDaily.d1_rate[i] || 0) / 100; sumD2 += t * (whDaily.d2_rate[i] || 0) / 100; }
-    });
-    if (sumT === 0) return { ...row, tickets: 0, online: 0, d1: 0, d2: 0, overdue: 0, notOnlineGt48: 0, notOnline2448: 0, notOnline: 0 };
-    let cnt2448 = 0, cntGt48 = 0, cntNotOnline = 0;
-    if (typeof SCAN_DATA !== 'undefined') {
-      SCAN_DATA.forEach(sr => {
-        if (sr[1] !== whName) return;
-        const m = sr[6].match(/^\d{4}-0?(\d{1,2})-0?(\d{1,2})/);
-        if (!m) return;
-        const mmdd = parseInt(m[1]) + '/' + parseInt(m[2]);
-        if (!dateSet.has(mmdd)) return;
-        if (sr[9] === '2' && sr[7] === '否') cntGt48++;
-        if (sr[9] === '1' && sr[8] === '否') cnt2448++;
-        if (sr[7] === '否') cntNotOnline++;
-      });
-    }
-    return { ...row, tickets: sumT, online: +(sumOnline / sumT * 100).toFixed(1), d1: +(sumD1 / sumT * 100).toFixed(1), d2: +(sumD2 / sumT * 100).toFixed(1), overdue: sumT > 0 ? +(100 - sumD2 / sumT * 100).toFixed(1) : 0, notOnlineGt48: cntGt48, notOnline2448: cnt2448, notOnline: cntNotOnline };
-  });
-}
-
 // ── 安全 DOM 写（元素不存在也不报错）──
 function setEl(id, html) { const el = document.getElementById(id); if (el) el.innerHTML = html; }
 function setBadge(selector, cls, txt) { const el = document.querySelector(selector); if (el) { el.className = cls; el.textContent = txt; } }
 
 // ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
-//  KPI
+//  KPI（采用副本版逻辑：直接从预计算数据取数，不做 SCAN_DATA 重算）
 // ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
 function updateKPI(data) {
   if (!data || data.length === 0) {
@@ -16574,56 +16505,38 @@ function updateKPI(data) {
   if (dateIdx.length === 0) {
     totalTickets = 0; wOnline = 0; wD1 = 0; wD2 = 0; wOverdue = 0;
     totalNotOnline = 0; totalNotOnlineGt48 = 0;
-  } else {
-    // 单行数据且有有效 rate 时，直接用 getDateFilteredRowData 已算好的值
-    // （避免渠道模式下 data[0].name 带"（渠道名）"后缀导致 warehouseDailyData 查找失败）
-    const hasComputedRates = data.length === 1 && typeof data[0].online === 'number' && data[0].tickets > 0;
-    if (hasComputedRates) {
-      totalTickets = data[0].tickets;
-      wOnline = data[0].online;
-      wD1 = data[0].d1;
-      wD2 = data[0].d2;
-      wOverdue = data[0].overdue;
+  } else if (isFullDateRange) {
+    // ★ 副本版逻辑：全日期范围 → 直接用预计算值加权平均
+    totalTickets = data.reduce((s, d) => s + d.tickets, 0);
+    if (totalTickets > 0) {
+      wOnline  = data.reduce((s, d) => s + d.online  * d.tickets, 0) / totalTickets;
+      wD1      = data.reduce((s, d) => s + d.d1      * d.tickets, 0) / totalTickets;
+      wD2      = data.reduce((s, d) => s + d.d2      * d.tickets, 0) / totalTickets;
+      wOverdue = data.reduce((s, d) => s + d.overdue * d.tickets, 0) / totalTickets;
     } else {
-    const isSingleWh = data.length === 1 && data[0].name && warehouseDailyData[data[0].name];
-    if (isSingleWh) {
-      const whDaily = warehouseDailyData[data[0].name];
-      let sumT = 0, sumOnline = 0, sumD1 = 0, sumD2 = 0;
-      dateIdx.forEach(i => {
-        const t = (whDaily.tickets[i] || 0);
-        if (t > 0) { sumT += t; sumOnline += t * (whDaily.online_rate[i] || 0) / 100; sumD1 += t * (whDaily.d1_rate[i] || 0) / 100; sumD2 += t * (whDaily.d2_rate[i] || 0) / 100; }
-      });
-      totalTickets = sumT;
-      wOnline = sumT > 0 ? +(sumOnline / sumT * 100).toFixed(1) : 0;
-      wD1 = sumT > 0 ? +(sumD1 / sumT * 100).toFixed(1) : 0;
-      wD2 = sumT > 0 ? +(sumD2 / sumT * 100).toFixed(1) : 0;
-      // wOverdue: 超期上网 = 100 - D2内扫描率（D2=否 的全部订单占比）
-      wOverdue = +(100 - wD2).toFixed(1);
-    } else {
-      const whNames = data.map(d => d.name).filter(n => warehouseDailyData[n]);
-      let sumT = 0, sumOnline = 0, sumD1 = 0, sumD2 = 0;
-      if (whNames.length > 0) {
-        dateIdx.forEach(i => {
-          whNames.forEach(whName => {
-            const whDaily = warehouseDailyData[whName];
-            const t = (whDaily.tickets[i] || 0);
-            if (t > 0) { sumT += t; sumOnline += t * (whDaily.online_rate[i] || 0) / 100; sumD1 += t * (whDaily.d1_rate[i] || 0) / 100; sumD2 += t * (whDaily.d2_rate[i] || 0) / 100; }
-          });
-        });
-        totalTickets = sumT;
-        wOnline = sumT > 0 ? +(sumOnline / sumT * 100).toFixed(1) : 0;
-        wD1 = sumT > 0 ? +(sumD1 / sumT * 100).toFixed(1) : 0;
-        wD2 = sumT > 0 ? +(sumD2 / sumT * 100).toFixed(1) : 0;
-        // wOverdue: 超期上网 = 100 - D2内扫描率（D2=否 的全部订单占比）
-        wOverdue = +(100 - wD2).toFixed(1);
-      } else {
-        totalTickets = 0; wOnline = 0; wD1 = 0; wD2 = 0; wOverdue = 0;
-      }
+      wOnline = 0; wD1 = 0; wD2 = 0; wOverdue = 0;
     }
-    } // end hasComputedRates else
-    totalNotOnline = data.reduce((s, d) => s + d.notOnline, 0);
-    totalNotOnlineGt48 = data.reduce((s, d) => s + (d.notOnlineGt48 || 0), 0);
+  } else {
+    // 日期范围筛选时，用 warehouseDailyData 按日期聚合（与图表数据源一致）
+    const whNames = data.map(d => d.name).filter(n => warehouseDailyData[n]);
+    let sumT = 0, sumOnline = 0, sumD1 = 0, sumD2 = 0;
+    if (whNames.length > 0) {
+      dateIdx.forEach(i => {
+        whNames.forEach(whName => {
+          const whDaily = warehouseDailyData[whName];
+          const t = (whDaily.tickets[i] || 0);
+          if (t > 0) { sumT += t; sumOnline += t * (whDaily.online_rate[i] || 0) / 100; sumD1 += t * (whDaily.d1_rate[i] || 0) / 100; sumD2 += t * (whDaily.d2_rate[i] || 0) / 100; }
+        });
+      });
+    }
+    totalTickets = sumT;
+    wOnline = sumT > 0 ? +(sumOnline / sumT * 100).toFixed(1) : 0;
+    wD1 = sumT > 0 ? +(sumD1 / sumT * 100).toFixed(1) : 0;
+    wD2 = sumT > 0 ? +(sumD2 / sumT * 100).toFixed(1) : 0;
+    wOverdue = +(100 - wD2).toFixed(1);
   }
+  totalNotOnline = data.reduce((s, d) => s + d.notOnline, 0);
+  totalNotOnlineGt48 = data.reduce((s, d) => s + (d.notOnlineGt48 || 0), 0);
 
   const getPrevKpi = (key) => {
     if (data.length === 1 && data[0].name && prevKpi.warehouseKpi && prevKpi.warehouseKpi[data[0].name]) {
@@ -16739,8 +16652,8 @@ function applyFilter() {
     viewWarehouses = data.map(d => d.name);
   }
 
-  // 日期范围过滤：动态重算 rates/tickets
-  data = getDateFilteredRowData(data, ch !== 'all');
+  // ★ 采用副本版逻辑：直接从预计算数据取数，不做 SCAN_DATA 重算
+  // data 已经是 warehouseData 或 channelScanData 过滤后的结果
 
   renderTable(data);
   updateKPI(data);
