@@ -22741,18 +22741,9 @@ function updateOutboundSection(region, wh) {
   const obLabels = outboundDailyData.labels;
   const obDateIdx = getDateIndices(obLabels, start, end);
   
-  // ★ 先找全局最新有效日期索引（任一筛选仓在该天有出库数据的最后一天）
-  // 所有仓统一用此索引作为"昨日"，避免各仓因休息日不同导致"昨日"日期错位
-  let globalLatestIdx = -1;
-  for (let j = obDateIdx.length - 1; j >= 0; j--) {
-    const i = obDateIdx[j];
-    let hasData = false;
-    for (const [n] of whList) {
-      const _wd = outboundDailyData.warehouses[n];
-      if (_wd && (_wd.tickets[i] || 0) > 0) { hasData = true; break; }
-    }
-    if (hasData) { globalLatestIdx = i; break; }
-  }
+  // ★ 截止日期索引：直接取筛选范围最后一天对应的 index
+  // 即"昨日应出库"= 筛选器截止日期当天，与日期筛选器同步，不受是否有数据影响
+  const globalLatestIdx = obDateIdx.length > 0 ? obDateIdx[obDateIdx.length - 1] : -1;
 
   // 为每个筛选仓计算日期过滤后的 total/timely/latest
   const whAgg = {}; // { name: { total, timely, latestTotal, latestTimely } }
@@ -22802,11 +22793,9 @@ function updateOutboundSection(region, wh) {
   tTag.style.color = totalRate >= 95 ? '#2e7d32' : totalRate >= 80 ? '#e65100' : '#c62828';
 
   const yLabel = document.getElementById('outKpiYesterdayTag');
-  // 复用已计算的 globalLatestIdx，避免重复遍历
-  const latestDateLabel = globalLatestIdx >= 0
-    ? obLabels[globalLatestIdx]
-    : (obDateIdx.length > 0 ? obLabels[obDateIdx[obDateIdx.length - 1]] : '—');
-  yLabel.textContent = `最新日期 ${latestDateLabel}`;
+  // 截止日期标签：直接用 globalLatestIdx（即筛选截止日当天）
+  const latestDateLabel = globalLatestIdx >= 0 ? obLabels[globalLatestIdx] : '—';
+  yLabel.textContent = `截止日期 ${latestDateLabel}`;
 
   // 渲染明细表
   const tbody = document.getElementById('outTableBody');
