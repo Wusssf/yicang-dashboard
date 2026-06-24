@@ -23491,19 +23491,12 @@ function countNotOnlineFromScan(channel, whName, start, end) {
     // 出库日期范围匹配
     var dt = (row[6] || '').substring(0, 10);
     if (dt < start || dt > end) return;
-    // ★ 未上网三段分类基础条件：M=否 且 N=否 且 O=否（均未扫描）
-    var notScannedD1 = row[10] === '否';
-    var notScannedD2 = row[8] === '否';
-    var notScanned = row[7] === '否';
-    if (notScannedD1 && notScannedD2 && notScanned) {
-      var pVal = String(row[9] || '').trim();
-      // <24h: P=0(D1)
-      if (pVal === '0' || pVal === 'D1') cntLt24++;
-      // 24-48h: P=1(D2)
-      else if (pVal === '1' || pVal === 'D2') cnt2448++;
-      // >48h: P=2(超期)
-      else if (pVal === '2' || pVal === '超期') cntGt48++;
-    }
+    // <24h: M=否 且 N=否 且 P=0(D1) 且 O=否
+    if (row[10] === '否' && row[8] === '否' && String(row[9] || '').trim() === '0' && row[7] === '否') cntLt24++;
+    // 24-48h: N=否 且 P=1(D2) 且 O=否
+    if (row[8] === '否' && String(row[9] || '').trim() === '1' && row[7] === '否') cnt2448++;
+    // >48h: N=否 且 P=2(超期) 且 O=否
+    if (row[8] === '否' && String(row[9] || '').trim() === '2' && row[7] === '否') cntGt48++;
   });
   return { cntLt24: cntLt24, cnt2448: cnt2448, cntGt48: cntGt48 };
 }
@@ -26492,24 +26485,18 @@ function exportData() {
       const mVal = row[10]; // 是否在D1内扫描
       // 跳过出库状态(index 4)，取: 客户代码(0),发货仓库(1),出库单号(2),服务商单号(3),服务渠道(5),出库时间(6)
       const exportRow = [row[0], row[1], row[2], row[3], row[5], row[6]];
-      // ★ 未上网三段分类：M=否 AND N=否 AND O=否（均未扫描），按P列超时标记细分
-      // 必须与 warehouseData 计算逻辑保持一致
-      const notScannedD1 = mVal === '否';
-      const notScannedD2 = nVal === '否';
-      const notScanned = oVal === '否';
-      if (notScannedD1 && notScannedD2 && notScanned) {
-        // Sheet0 (<24h): P='D1' 或 P=0
-        if (pVal === 'D1' || pVal === '0' || pVal === 0) {
-          rows0.push(exportRow);
-        }
-        // Sheet1 (24-48h): P='D2' 或 P=1
-        else if (pVal === 'D2' || pVal === '1' || pVal === 1) {
-          rows1.push(exportRow);
-        }
-        // Sheet2 (>48h): P='超期' 或 P=2
-        else if (pVal === '超期' || pVal === '2' || pVal === 2) {
-          rows2.push(exportRow);
-        }
+      // ★ 未上网三段分类（与 countNotOnlineFromScan 逻辑保持一致）
+      // <24h: M=否 且 N=否 且 P=0(D1) 且 O=否
+      if (mVal === '否' && nVal === '否' && (pVal === '0' || pVal === 'D1' || pVal === 0) && oVal === '否') {
+        rows0.push(exportRow);
+      }
+      // 24-48h: N=否 且 P=1(D2) 且 O=否
+      if (nVal === '否' && (pVal === '1' || pVal === 'D2' || pVal === 1) && oVal === '否') {
+        rows1.push(exportRow);
+      }
+      // >48h: N=否 且 P=2(超期) 且 O=否
+      if (nVal === '否' && (pVal === '2' || pVal === '超期' || pVal === 2) && oVal === '否') {
+        rows2.push(exportRow);
       }
     });
   }
