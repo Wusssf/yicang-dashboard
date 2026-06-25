@@ -1298,39 +1298,55 @@ function renderOutTable(data) {
     regionRow.innerHTML = `<td colspan="7" style="text-align:center;background:#e8f4fd;font-weight:700;font-size:14px;color:#0d2b52;padding:8px 12px;border-bottom:1px solid #eef5fb;">${regionNames[region]}</td>`;
     tbody.appendChild(regionRow);
 
+    // ★ 按 cutoff 分组，相同 cutoff 的仓库合并截单时间单元格
+    const cutoffGroups = {};
     rows.forEach(row => {
-      const sCls = row.status === 'ok' ? 'status-ok' : row.status === 'warn' ? 'status-warn' : 'status-bad';
-      const sTxt = row.status === 'ok' ? '达标' : row.status === 'warn' ? '需关注' : '不达标';
-      const barColor = row.rate >= 95 ? 'green' : row.rate >= 80 ? 'blue' : 'red';
+      const key = row.cutoff || '未知';
+      if (!cutoffGroups[key]) cutoffGroups[key] = [];
+      cutoffGroups[key].push(row);
+    });
 
-      // 时差显示：当前使用的用粗体蓝色，不用的用灰色
-      const curTz = row.tz.current === 'summer' ? row.tz.summer : row.tz.winter;
-      const sumClass = row.tz.current === 'summer' ? 'active' : 'inactive';
-      const winClass = row.tz.current === 'winter' ? 'active' : 'inactive';
-      const tzFmt = v => v === '0' ? '—' : (v.startsWith('-') ? v : '-' + v);
-      const tzHtml = row.tz.summer === row.tz.winter
-        ? `<div class="tz-item ${sumClass}">${tzFmt(curTz)}</div>`
-        : `<div class="tz-item ${sumClass}">夏令时 ${tzFmt(row.tz.summer)}</div><div class="tz-item ${winClass}">冬令时 ${tzFmt(row.tz.winter)}</div>`;
+    // 按 cutoff 分组后渲染
+    Object.values(cutoffGroups).forEach((group, groupIdx) => {
+      group.forEach((row, idx) => {
+        const sCls = row.status === 'ok' ? 'status-ok' : row.status === 'warn' ? 'status-warn' : 'status-bad';
+        const sTxt = row.status === 'ok' ? '达标' : row.status === 'warn' ? '需关注' : '不达标';
+        const barColor = row.rate >= 95 ? 'green' : row.rate >= 80 ? 'blue' : 'red';
 
-      tbody.innerHTML += `<tr>
-        <td><strong>${row.name}</strong></td>
-        <td>${row.cal}</td>
-        <td style="white-space:nowrap;color:#5a8ab5;">${row.cutoff}</td>
-        <td>${row.total.toLocaleString()}</td>
-        <td>${row.ontime.toLocaleString()}</td>
-        <td>
-          <div class="rate-bar-wrap">
-            <div class="rate-bar"><div class="rate-bar-fill ${barColor}" style="width:${row.rate}%"></div></div>
-            <span class="rate-num">${row.rate}%</span>
-          </div>
-        </td>
-        <td><span class="status-badge ${sCls}">${sTxt}</span></td>
-        <td><div class="tz-cell">${tzHtml}</div></td>
-      </tr>`;
+        // 时差显示：当前使用的用粗体蓝色，不用的用灰色
+        const curTz = row.tz.current === 'summer' ? row.tz.summer : row.tz.winter;
+        const sumClass = row.tz.current === 'summer' ? 'active' : 'inactive';
+        const winClass = row.tz.current === 'winter' ? 'active' : 'inactive';
+        const tzFmt = v => v === '0' ? '—' : (v.startsWith('-') ? v : '-' + v);
+        const tzHtml = row.tz.summer === row.tz.winter
+          ? `<div class="tz-item ${sumClass}">${tzFmt(curTz)}</div>`
+          : `<div class="tz-item ${sumClass}">夏令时 ${tzFmt(row.tz.summer)}</div><div class="tz-item ${winClass}">冬令时 ${tzFmt(row.tz.winter)}</div>`;
+
+        // ★ 截单时间单元格：相同 cutoff 的第一行显示并设 rowspan，后续行不显示
+        const cutoffRowspan = group.length;
+        const cutoffCell = (idx === 0)
+          ? `<td rowspan="${cutoffRowspan}" style="white-space:nowrap;color:#5a8ab5;vertical-align:middle;">${row.cutoff}</td>`
+          : '';
+
+        tbody.innerHTML += `<tr>
+          <td><strong>${row.name}</strong></td>
+          <td>${row.cal}</td>
+          ${cutoffCell}
+          <td>${row.total.toLocaleString()}</td>
+          <td>${row.ontime.toLocaleString()}</td>
+          <td>
+            <div class="rate-bar-wrap">
+              <div class="rate-bar"><div class="rate-bar-fill ${barColor}" style="width:${row.rate}%"></div></div>
+              <span class="rate-num">${row.rate}%</span>
+            </div>
+          </td>
+          <td><span class="status-badge ${sCls}">${sTxt}</span></td>
+          <td><div class="tz-cell">${tzHtml}</div></td>
+        </tr>`;
+      });
     });
   });
 }
-
 renderTable(warehouseData);
 
 // ★ 初始化日期筛选器：从 SCAN_DATA 提取有效日期，设置 min/max，标记无数据日期为灰色
