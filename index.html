@@ -2306,7 +2306,7 @@ const outboundData = {
     '千叶六方町仓': { region:'日本', total:8851, timely:8745, latestTotal:311, latestTimely:309, latestDate:'6/23', cutoff:'工作日 日本时间 13:00，节假日 日本时间 11:00', tzSummer:'+1', tzWinter:'+1' },
     '千叶天户町仓': { region:'日本', total:4223, timely:4085, latestTotal:112, latestTimely:112, latestDate:'6/23', cutoff:'工作日 日本时间 13:00，节假日 日本时间 11:00', tzSummer:'+1', tzWinter:'+1' },
     '大阪箕面仓': { region:'日本', total:15819, timely:15807, latestTotal:651, latestTimely:650, latestDate:'6/23', cutoff:'工作日 日本时间 12:00，节假日 日本时间 10:00', tzSummer:'+1', tzWinter:'+1' },
-    '大阪貝塚仓': { region:'日本', total:303, timely:303, latestTotal:6, latestTimely:6, latestDate:'6/23', cutoff:'工作日 日本时间 12:00，节假日 日本时间 10:00（周日只收货不发货）', tzSummer:'+1', tzWinter:'+1' },
+    '大阪貝塚仓': { region:'日本', total:303, timely:303, latestTotal:6, latestTimely:6, latestDate:'6/23', cutoff:'工作日 日本时间 12:00，节假日 日本时间 10:00', tzSummer:'+1', tzWinter:'+1' },
     '德国柏林01仓': { region:'欧洲', total:14301, timely:13754, latestTotal:1841, latestTimely:1731, latestDate:'6/23', cutoff:'德国时间 09:00', tzSummer:'-6', tzWinter:'-7' },
     '美国新泽西01仓': { region:'美国', total:3869, timely:3723, latestTotal:75, latestTimely:75, latestDate:'6/23', cutoff:'美东时间 09:00', tzSummer:'-12', tzWinter:'-13' },
     '美国洛杉矶03仓': { region:'美国', total:4242, timely:3656, latestTotal:138, latestTimely:138, latestDate:'6/23', cutoff:'美西时间 09:00', tzSummer:'-15', tzWinter:'-16' },
@@ -4072,28 +4072,40 @@ function updateOutboundSection(region, wh) {
     regionRow.innerHTML = `<td colspan="7" style="text-align:center;background:#e8f4fd;font-weight:700;font-size:14px;color:#0d2b52;padding:8px 12px;border-bottom:1px solid #c8dae8;">${regionNames[regionName]}</td>`;
     tbody.appendChild(regionRow);
 
+    // 按 cutoff 分组，相同截单时间的仓库合并截单时间单元格
+    const cutoffGroups = {};
     rows.forEach(([name, d]) => {
-      const a = whAgg[name];
-      const wRate = a.total > 0 ? +(a.timely / a.total * 100).toFixed(1) : 0;
-      const wLatestRate = a.latestTotal > 0 ? +(a.latestTimely / a.latestTotal * 100).toFixed(1) : 0;
-      const statusCls = wLatestRate >= 95 ? 'status-ok' : wLatestRate >= 80 ? 'status-warn' : 'status-bad';
-      const statusTxt = wLatestRate >= 95 ? '达标' : wLatestRate >= 80 ? '关注' : '异常';
-      const rateColor = wRate >= 95 ? '#2e7d32' : wRate >= 80 ? '#1f6feb' : '#c62828';
-      const lrColor = wLatestRate >= 95 ? '#2e7d32' : wLatestRate >= 80 ? '#1f6feb' : '#c62828';
+      const key = d.cutoff || '未知';
+      if (!cutoffGroups[key]) cutoffGroups[key] = [];
+      cutoffGroups[key].push([name, d]);
+    });
 
-      // 时差显示
-      const curTz = d.tzSummer;
-      const tzStr = `${curTz}h`;
+    Object.values(cutoffGroups).forEach(group => {
+      group.forEach(([name, d], idx) => {
+        const a = whAgg[name];
+        const wRate = a.total > 0 ? +(a.timely / a.total * 100).toFixed(1) : 0;
+        const wLatestRate = a.latestTotal > 0 ? +(a.latestTimely / a.latestTotal * 100).toFixed(1) : 0;
+        const statusCls = wLatestRate >= 95 ? 'status-ok' : wLatestRate >= 80 ? 'status-warn' : 'status-bad';
+        const statusTxt = wLatestRate >= 95 ? '达标' : wLatestRate >= 80 ? '关注' : '异常';
+        const lrColor = wLatestRate >= 95 ? '#2e7d32' : wLatestRate >= 80 ? '#1f6feb' : '#c62828';
+        const curTz = d.tzSummer;
+        const tzStr = `${curTz}h`;
 
-      tbody.innerHTML += `<tr>
-        <td><strong>${name}</strong></td>
-        <td style="color:#5a8ab5;">${d.cutoff}</td>
-        <td>${a.total.toLocaleString()}</td>
-        <td style="color:${lrColor};font-weight:600;">${a.latestTotal}</td>
-        <td style="color:${lrColor};font-weight:600;">${wLatestRate}%</td>
-        <td><span class="status-badge ${statusCls}">${statusTxt}</span></td>
-        <td class="tz-col-cell"><div class="tz-item active">${tzStr}</div></td>
-      </tr>`;
+        // 截单时间单元格：同组第一行显示并设 rowspan，后续行不显示
+        const cutoffCell = (idx === 0)
+          ? `<td style="color:#5a8ab5;white-space:nowrap;vertical-align:middle;" rowspan="${group.length}">${d.cutoff}</td>`
+          : '';
+
+        tbody.innerHTML += `<tr>
+          <td><strong>${name}</strong></td>
+          ${cutoffCell}
+          <td>${a.total.toLocaleString()}</td>
+          <td style="color:${lrColor};font-weight:600;">${a.latestTotal}</td>
+          <td style="color:${lrColor};font-weight:600;">${wLatestRate}%</td>
+          <td><span class="status-badge ${statusCls}">${statusTxt}</span></td>
+          <td class="tz-col-cell"><div class="tz-item active">${tzStr}</div></td>
+        </tr>`;
+      });
     });
   });
 }
