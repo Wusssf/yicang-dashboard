@@ -1357,7 +1357,7 @@ function renderOutTable(data) {
     });
   });
 }
-renderTable(warehouseData);
+// 初始渲染通过底部 applyFilter() 统一执行，此处不重复调用
 
 // ★ 初始化日期筛选器：从 SCAN_DATA 提取有效日期，设置 min/max，标记无数据日期为灰色
 (function initDateFilter() {
@@ -1777,8 +1777,7 @@ function resetFilter() {
       if (endEl) endEl.value = '2026-06-23';
     }
   }
-  renderTable(warehouseData);
-  updateKPI(warehouseData);
+  applyFilter();
   updatePieChart('all', warehouseData.reduce((s, d) => s + d.tickets, 0), null);
   updateSlaTable(null);
   initSlaWeekHeaders();
@@ -4041,9 +4040,8 @@ const outboundNotTimelyData = [
 let outboundTrendChartInstance = null;
 
 // 初始加载时渲染全部图表和表格
-// ★ 改为调用 applyFilter() 以确保数据与导出一致（通过日期范围重新计算）
+// ★ 初始加载：统一走 applyFilter() 计算，不再单独 updateKPI(warehouseData)
 applyFilter();
-updateKPI(warehouseData);
 updateTrendChart(warehouseData.map(d => d.name), null, '全部');
 updatePieChart('all', warehouseData.reduce((s, d) => s + d.tickets, 0), null);
 updateSlaTable(null);
