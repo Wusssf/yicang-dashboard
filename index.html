@@ -4072,16 +4072,7 @@ function updateOutboundSection(region, wh) {
     regionRow.innerHTML = `<td colspan="7" style="text-align:center;background:#e8f4fd;font-weight:700;font-size:14px;color:#0d2b52;padding:8px 12px;border-bottom:1px solid #c8dae8;">${regionNames[regionName]}</td>`;
     tbody.appendChild(regionRow);
 
-    // 按 cutoff 分组，相同截单时间的仓库合并截单时间单元格
-    const cutoffGroups = {};
     rows.forEach(([name, d]) => {
-      const key = d.cutoff || '未知';
-      if (!cutoffGroups[key]) cutoffGroups[key] = [];
-      cutoffGroups[key].push([name, d]);
-    });
-
-    Object.values(cutoffGroups).forEach(group => {
-      group.forEach(([name, d], idx) => {
         const a = whAgg[name];
         const wRate = a.total > 0 ? +(a.timely / a.total * 100).toFixed(1) : 0;
         const wLatestRate = a.latestTotal > 0 ? +(a.latestTimely / a.latestTotal * 100).toFixed(1) : 0;
@@ -4091,10 +4082,10 @@ function updateOutboundSection(region, wh) {
         const curTz = d.tzSummer;
         const tzStr = `${curTz}h`;
 
-        // 截单时间单元格：同组第一行显示并设 rowspan，后续行不显示
-        const cutoffCell = (idx === 0)
-          ? `<td style="color:#5a8ab5;text-align:center;vertical-align:middle;padding:10px 8px;" rowspan="${group.length}">${d.cutoff}</td>`
-          : '';
+        // 截单时间单元格：每行独立显示，长文本自动换行
+        // 截单时间单元格：每行独立显示，逗号换行
+        const cutoffText = (d.cutoff || '').replace(/，/g, '<br>');
+        const cutoffCell = `<td style="color:#5a8ab5;text-align:center;vertical-align:middle;padding:6px 12px;font-size:13px;line-height:1.6;">${cutoffText}</td>`;
 
         tbody.innerHTML += `<tr style="height:42px;">
           <td style="padding:6px 12px;"><strong>${name}</strong></td>
@@ -4106,7 +4097,6 @@ function updateOutboundSection(region, wh) {
           <td class="tz-col-cell" style="padding:6px 4px;"><div class="tz-item active">${tzStr}</div></td>
         </tr>`;
       });
-    });
   });
 }
 
