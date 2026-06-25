@@ -25976,11 +25976,11 @@ function countNotOnlineFromScan(channel, whName, start, end) {
     var dt = (row[6] || '').substring(0, 10);
     if (dt < start || dt > end) return;
     // ★ 未上网三段分类：M=否 AND N=否 AND O=否（均未扫描），按P列超时标记细分
-    // SCAN_DATA列顺序: L列出库日期_当地=7, O列=8, N列=9, P列=10, M列=11
-    var oVal = row[8];   // 是否已扫描
-    var nVal = row[9];   // 是否在D2内扫描
-    var pVal = String(row[10] || '').trim();  // 超时标记: 0=D1, 1=D2, 2=超期
-    var mVal = row[11];  // 是否在D1内扫描
+    // SCAN_DATA列顺序: O列=7, N列=8, P列=9, M列=10
+    var oVal = row[7];   // 是否已扫描 (O列)
+    var nVal = row[8];   // 是否在D2内扫描 (N列)
+    var pVal = String(row[9] || '').trim();  // 超时标记 (P列): 0=D1, 1=D2, 2=超期
+    var mVal = row[10];  // 是否在D1内扫描 (M列)
     if (mVal === '否' && nVal === '否' && oVal === '否') {
       // <24h: P=0(D1)
       if (pVal === '0') cntLt24++;
@@ -29041,11 +29041,11 @@ function exportData() {
     SCAN_DATA.forEach(row => {
       if (!passFilter(row)) return;
       if (!isDateInRange(row[6], start, end)) return;  // ★ 使用I列出库时间
-      // SCAN_DATA列顺序: L列=7, O列=8, N列=9, P列=10, M列=11
-      const oVal = row[8];   // 是否已扫描 (O)
-      const nVal = row[9];   // 是否在D2内扫描 (N)
-      const pVal = row[10];  // 超时标记 (P): 0=D1, 1=D2, 2=超期
-      const mVal = row[11];  // 是否在D1内扫描 (M)
+      // SCAN_DATA列顺序: O列=7, N列=8, P列=9, M列=10
+      const oVal = row[7];   // 是否已扫描 (O)
+      const nVal = row[8];   // 是否在D2内扫描 (N)
+      const pVal = row[9];   // 超时标记 (P): 0=D1, 1=D2, 2=超期
+      const mVal = row[10];  // 是否在D1内扫描 (M)
       // 跳过出库状态(index 4)，取: 客户代码(0),发货仓库(1),出库单号(2),服务商单号(3),服务渠道(5),出库时间(6/I列)
       const exportRow = [row[0], row[1], row[2], row[3], row[5], row[6]];
       // ★ 未上网三段分类（与 countNotOnlineFromScan 逻辑保持一致）
