@@ -1450,7 +1450,11 @@ function onDateChange() {
 //   未上网(>48h)   = N列(是否在D2内扫描)=否 且 P列(超时标记)=2(超期) 且 O列(已扫描)=否
 function countNotOnlineFromScan(channel, whName, start, end) {
   var cntLt24 = 0, cnt2448 = 0, cntGt48 = 0;
-  if (typeof SCAN_DATA === 'undefined' || !SCAN_DATA.length) return { cntLt24: 0, cnt2448: 0, cntGt48: 0 };
+  if (typeof SCAN_DATA === 'undefined' || !SCAN_DATA.length) {
+    console.log('[DEBUG] SCAN_DATA undefined! params:', {channel, whName, start, end});
+    return { cntLt24: 0, cnt2448: 0, cntGt48: 0 };
+  }
+  console.log('[DEBUG countNotOnline] IN: channel=' + channel + ' wh=' + whName + ' start=' + start + ' end=' + end + ' SCAN_LEN=' + SCAN_DATA.length);
   SCAN_DATA.forEach(function(row) {
     // 仓库匹配
     if (whName && row[1] !== whName) return;
@@ -1474,6 +1478,7 @@ function countNotOnlineFromScan(channel, whName, start, end) {
       else if (pVal === '2') cntGt48++;
     }
   });
+  console.log('[DEBUG countNotOnline] OUT: cntLt24=' + cntLt24 + ' cnt2448=' + cnt2448 + ' cntGt48=' + cntGt48);
   return { cntLt24: cntLt24, cnt2448: cnt2448, cntGt48: cntGt48 };
 }
 
@@ -1484,6 +1489,7 @@ function getDateFilteredRowData(data, allLabels, chDaily, channel) {
   const { start, end } = getSelectedDateRange();
   if (!allLabels || allLabels.length === 0) return data;
   const dateIdx = getDateIndices(allLabels, start, end);
+  console.log('[DEBUG getDateFilteredRowData] dateIdx len=' + dateIdx.length + ' start=' + start + ' end=' + end);
   if (dateIdx.length === 0) return data;
 
   return data.map(function(row) {
