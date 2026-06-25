@@ -4430,7 +4430,7 @@ function exportOutboundTrendData() {
 // Sheet2 未上网(>48h)  ：P列(超时标记)=2(超期) 且 O列(已扫描)=否
 // SCAN_DATA列: 客户代码(0), 发货仓库(1), 出库单号(2), 服务商单号(3), 出库状态(4), 服务渠道(5), 出库时间(6),
 //              是否已扫描/O列(7), 是否在D2内扫描/N列(8), 超时标记/P列(9)
-// 导出列(跳过出库状态): 客户代码, 发货仓库, 出库单号, 服务商单号, 服务渠道, 出库时间
+// 导出列(跳过出库状态): 客户代码, 发货仓库, 出库单号, 服务商单号, 服务渠道, 出库日期_当地(L列)
 function exportData() {
   try {
   const region = document.getElementById('filterRegion').value;
@@ -4440,7 +4440,7 @@ function exportData() {
   const { start, end } = getSelectedDateRange();
 
   // 导出用的6列表头（跳过出库状态）
-  const exportHeaders = ["客户代码","发货仓库","出库单号","服务商单号","服务渠道","出库时间"];
+  const exportHeaders = ["客户代码","发货仓库","出库单号","服务商单号","服务渠道","出库日期_当地"];
 
   // 仓库过滤函数
   function passFilter(row) {
@@ -4467,8 +4467,8 @@ function exportData() {
       const nVal = row[9];   // 是否在D2内扫描 (N)
       const pVal = row[10];  // 超时标记 (P): 0=D1, 1=D2, 2=超期
       const mVal = row[11];  // 是否在D1内扫描 (M)
-      // 跳过出库状态(index 4)，取: 客户代码(0),发货仓库(1),出库单号(2),服务商单号(3),服务渠道(5),出库时间(6)
-      const exportRow = [row[0], row[1], row[2], row[3], row[5], row[6]];
+      // 跳过出库状态(index 4)，取: 客户代码(0),发货仓库(1),出库单号(2),服务商单号(3),服务渠道(5),出库日期_当地(7/L列)
+      const exportRow = [row[0], row[1], row[2], row[3], row[5], row[7]];
       // ★ 未上网三段分类（与 countNotOnlineFromScan 逻辑保持一致）
       // 基础条件：M=否 AND N=否 AND O=否（均未扫描）
       if (mVal === '否' && nVal === '否' && oVal === '否') {
