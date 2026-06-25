@@ -4093,17 +4093,17 @@ function updateOutboundSection(region, wh) {
 
         // 截单时间单元格：同组第一行显示并设 rowspan，后续行不显示
         const cutoffCell = (idx === 0)
-          ? `<td style="color:#5a8ab5;white-space:nowrap;vertical-align:middle;" rowspan="${group.length}">${d.cutoff}</td>`
+          ? `<td style="color:#5a8ab5;text-align:center;vertical-align:middle;padding:10px 8px;" rowspan="${group.length}">${d.cutoff}</td>`
           : '';
 
-        tbody.innerHTML += `<tr>
-          <td><strong>${name}</strong></td>
+        tbody.innerHTML += `<tr style="height:42px;">
+          <td style="padding:6px 12px;"><strong>${name}</strong></td>
           ${cutoffCell}
-          <td>${a.total.toLocaleString()}</td>
-          <td style="color:${lrColor};font-weight:600;">${a.latestTotal}</td>
-          <td style="color:${lrColor};font-weight:600;">${wLatestRate}%</td>
-          <td><span class="status-badge ${statusCls}">${statusTxt}</span></td>
-          <td class="tz-col-cell"><div class="tz-item active">${tzStr}</div></td>
+          <td style="padding:6px 12px;">${a.total.toLocaleString()}</td>
+          <td style="color:${lrColor};font-weight:600;padding:6px 12px;">${a.latestTotal}</td>
+          <td style="color:${lrColor};font-weight:600;padding:6px 12px;">${wLatestRate}%</td>
+          <td style="padding:6px 12px;"><span class="status-badge ${statusCls}">${statusTxt}</span></td>
+          <td class="tz-col-cell" style="padding:6px 4px;"><div class="tz-item active">${tzStr}</div></td>
         </tr>`;
       });
     });
