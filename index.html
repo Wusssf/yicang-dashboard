@@ -1442,12 +1442,12 @@ function renderOutTable(data) {
   var minDate = sorted[0], maxDate = sorted[sorted.length - 1];
 
   // ★ 扩展 maxDate：出库数据可能比 SCAN_DATA 更新到更晚的日期
-  if (typeof outboundDailyData !== 'undefined' && outboundDailyData.labels && outboundDailyData.labels.length > 0) {
+  try { if (outboundDailyData && outboundDailyData.labels && outboundDailyData.labels.length > 0) {
     var obMaxLabel = outboundDailyData.labels[outboundDailyData.labels.length - 1];
     var parts = obMaxLabel.split('/');
     var obMaxDate = '2026-' + String(parseInt(parts[0],10)).padStart(2,'0') + '-' + String(parseInt(parts[1],10)).padStart(2,'0');
     if (obMaxDate > maxDate) maxDate = obMaxDate;
-  }
+  } } catch(e) { /* outboundDailyData not yet defined — skip extension */ }
 
   // 设置 min/max 属性（限制日历可选范围）
   startEl.min = minDate;
