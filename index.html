@@ -895,7 +895,7 @@ const SCAN_DATA = [["DLD","德国柏林01仓","OE26061500740DLD","00340434657256
     </div>
   </div>
   <div class="header-right">
-    <div class="update-time" id="updateTime">数据更新时间：2026-06-29 （数据：2026/06/01~2026/06/27）</div>
+    <div class="update-time" id="updateTime">数据更新时间：2026-06-29 （数据：2026/06/01~2026/06/28）</div>
     <div class="live-badge"><div class="live-dot"></div>实时监控</div>
   </div>
 </div>
@@ -923,7 +923,7 @@ const SCAN_DATA = [["DLD","德国柏林01仓","OE26061500740DLD","00340434657256
     <span class="filter-label">出库日期</span>
     <input type="date" class="filter-input" id="filterStartDate" value="2026-06-01" onchange="onDateChange()">
     <span style="font-size:13px;color:#5a8ab5;margin:0 4px;">~</span>
-    <input type="date" class="filter-input" id="filterEndDate" value="2026-06-27" onchange="onDateChange()">
+    <input type="date" class="filter-input" id="filterEndDate" value="2026-06-28" onchange="onDateChange()">
   </div>
   <button class="filter-btn" onclick="applyFilter()">🔍 查询</button>
   <button class="filter-btn secondary" onclick="resetFilter()">↺ 重置</button>
@@ -4769,8 +4769,9 @@ function toggleAccordion(el) {
   if (window._scanDateMin && window._scanDateMax) {
     var sEl = document.getElementById('filterStartDate');
     var eEl = document.getElementById('filterEndDate');
-    if (sEl) { sEl.value = window._scanDateMin; sEl.classList.remove('no-data-date'); }
-    if (eEl) { eEl.value = window._scanDateMax; eEl.classList.remove('no-data-date'); }
+    // 仅当输入框为空值时才设置默认日期（保留 HTML 已设置的 value）
+    if (sEl && !sEl.value) { sEl.value = window._scanDateMin; sEl.classList.remove('no-data-date'); }
+    if (eEl && !eEl.value) { eEl.value = window._scanDateMax; eEl.classList.remove('no-data-date'); }
   } else {
     var firstDate = mdyToISO(labels[0]);
     var lastDate = mdyToISO(labels[labels.length - 1]);
