@@ -1441,15 +1441,7 @@ function renderOutTable(data) {
   if (sorted.length === 0) return;
   var minDate = sorted[0], maxDate = sorted[sorted.length - 1];
 
-  // ★ 扩展 maxDate：出库数据可能比 SCAN_DATA 更新到更晚的日期
-  try { if (outboundDailyData && outboundDailyData.labels && outboundDailyData.labels.length > 0) {
-    var obMaxLabel = outboundDailyData.labels[outboundDailyData.labels.length - 1];
-    var parts = obMaxLabel.split('/');
-    var obMaxDate = '2026-' + String(parseInt(parts[0],10)).padStart(2,'0') + '-' + String(parseInt(parts[1],10)).padStart(2,'0');
-    if (obMaxDate > maxDate) maxDate = obMaxDate;
-  } } catch(e) { /* outboundDailyData not yet defined — skip extension */ }
-
-  // 设置 min/max 属性（限制日历可选范围）
+  // 设置 min/max 属性（限制日历可选范围，实际范围在底部 initDateFilter 中扩展）
   startEl.min = minDate;
   startEl.max = maxDate;
   endEl.min = minDate;
@@ -4784,6 +4776,16 @@ function toggleAccordion(el) {
     // 仅当输入框为空值时才设置默认日期（保留 HTML 已设置的 value）
     if (sEl && !sEl.value) { sEl.value = window._scanDateMin; sEl.classList.remove('no-data-date'); }
     if (eEl && !eEl.value) { eEl.value = window._scanDateMax; eEl.classList.remove('no-data-date'); }
+    // 扩展 max 范围：出库数据可能比 SCAN_DATA 更新
+    var maxForInput = window._scanDateMax;
+    if (typeof outboundDailyData !== 'undefined' && outboundDailyData.labels && outboundDailyData.labels.length > 0) {
+      var obMax = outboundDailyData.labels[outboundDailyData.labels.length - 1];
+      var p = obMax.split('/');
+      var obMaxDate = '2026-' + String(parseInt(p[0],10)).padStart(2,'0') + '-' + String(parseInt(p[1],10)).padStart(2,'0');
+      if (obMaxDate > maxForInput) maxForInput = obMaxDate;
+    }
+    if (sEl && maxForInput) sEl.max = maxForInput;
+    if (eEl && maxForInput) eEl.max = maxForInput;
   } else {
     var firstDate = mdyToISO(labels[0]);
     var lastDate = mdyToISO(labels[labels.length - 1]);
