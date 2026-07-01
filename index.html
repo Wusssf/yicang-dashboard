@@ -1611,12 +1611,12 @@ function countNotOnlineFromScan(channel, whName, start, end) {
     var pVal = String(row[10] || '').trim();  // 超时标记 (P列): 0=D1, 1=D2, 2=超期
     var mVal = row[11];  // 是否在D1内扫描 (M列)
     if (mVal === '否' && nVal === '否' && oVal === '否') {
-      // <24h: P=0(D1)
-      if (pVal === '0') cntLt24++;
-      // 24-48h: P=1(D2)
-      else if (pVal === '1') cnt2448++;
-      // >48h: P=2(超期)
-      else if (pVal === '2') cntGt48++;
+      // <24h: P=D1
+      if (pVal === 'D1') cntLt24++;
+      // 24-48h: P=D2
+      else if (pVal === 'D2') cnt2448++;
+      // >48h: P=超期
+      else if (pVal === '超期') cntGt48++;
     }
   });
   console.log('[DEBUG countNotOnline] OUT: cntLt24=' + cntLt24 + ' cnt2448=' + cnt2448 + ' cntGt48=' + cntGt48);
